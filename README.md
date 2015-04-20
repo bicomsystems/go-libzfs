@@ -21,14 +21,14 @@
 ## Installing
 
 ```sh
-go get github.com/fkasumovic/go-libzfs
+go get github.com/bicomsystems/go-libzfs
 ```
 
 ## Testing
 
 ```sh
 # On command line shell run
-cd $GOPATH/src/github.com/fkasumovic/go-libzfs
+cd $GOPATH/src/github.com/bicomsystems/go-libzfs
 go test
 ```
 
