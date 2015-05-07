@@ -156,7 +156,20 @@ func (d *Dataset) Close() {
 	}
 }
 
+// Destroys the dataset.  The caller must make sure that the filesystem
+// isn't mounted, and that there are no active dependents. Set Defer argument
+// to true to defer destruction for when dataset is not in use.
 func (d *Dataset) Destroy(Defer bool) (err error) {
+	if len(d.Children) > 0 {
+		path, e := d.Path()
+		if e != nil {
+			return
+		}
+		dsType, e := d.GetProperty(ZFSPropType)
+		err = errors.New("Cannot destroy dataset " + path +
+			": " + dsType.Value + " has children")
+		return
+	}
 	if d.list != nil {
 		if ec := C.zfs_destroy(d.list.zh, boolean_t(Defer)); ec != 0 {
 			err = LastError()
@@ -164,6 +177,23 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 	} else {
 		err = errors.New(msgDatasetIsNil)
 	}
+	return
+}
+
+// Recursively destroy children of dataset and dataset.
+func (d *Dataset) DestroyRecursive() (err error) {
+	if len(d.Children) > 0 {
+		for _, c := range d.Children {
+			if err = c.DestroyRecursive(); err != nil {
+				return
+			}
+			// close handle to destroyed child dataset
+			c.Close()
+		}
+		// clear closed children array
+		d.Children = make([]Dataset, 0)
+	}
+	err = d.Destroy(false)
 	return
 }
 
@@ -259,7 +289,7 @@ func (d *Dataset) Clone(target string, props map[ZFSProp]Property) (rd Dataset, 
 	return
 }
 
-// Create dataset snapshot
+// Create dataset snapshot. Set recur to true to snapshot child datasets.
 func DatasetSnapshot(path string, recur bool, props map[ZFSProp]Property) (rd Dataset, err error) {
 	var cprops *C.nvlist_t
 	if cprops, err = datasetPropertiesTo_nvlist(props); err != nil {
@@ -285,6 +315,7 @@ func (d *Dataset) Path() (path string, err error) {
 	return
 }
 
+// Rollabck dataset snapshot
 func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -297,6 +328,7 @@ func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 	return
 }
 
+// Rename dataset
 func (d *Dataset) Rename(newname string, recur,
 	force_umount bool) (err error) {
 	if d.list == nil {
