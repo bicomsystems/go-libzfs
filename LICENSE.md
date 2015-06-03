@@ -1,4 +1,4 @@
-Copyright (c) 2015, Faruk Kasumovic
+Copyright (c) 2015, Faruk Kasumovic  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
