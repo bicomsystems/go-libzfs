@@ -319,3 +319,33 @@ func ExamplePool_Destroy() {
 		return
 	}
 }
+
+func ExamplePoolImport() {
+	p, err := zfs.PoolImport("TESTPOOL", []string{"/dev/disk/by-id"})
+	if err != nil {
+		panic(err)
+	}
+	p.Close()
+}
+
+func ExamplePool_Export() {
+	p, err := zfs.PoolOpen("TESTPOOL")
+	if err != nil {
+		panic(err)
+	}
+	defer p.Close()
+	if err = p.Export(false, "Example exporting pool"); err != nil {
+		panic(err)
+	}
+}
+
+func ExamplePool_ExportForce() {
+	p, err := zfs.PoolOpen("TESTPOOL")
+	if err != nil {
+		panic(err)
+	}
+	defer p.Close()
+	if err = p.ExportForce("Example exporting pool"); err != nil {
+		panic(err)
+	}
+}
