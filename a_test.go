@@ -9,6 +9,10 @@ import (
 
 func Test(t *testing.T) {
 	zpoolTestPoolCreate(t)
+	zpoolTestExport(t)
+	zpoolTestImport(t)
+	zpoolTestExportForce(t)
+	zpoolTestImport(t)
 	zpoolTestPoolOpenAll(t)
 	zpoolTestFailPoolOpen(t)
 
@@ -20,4 +24,6 @@ func Test(t *testing.T) {
 	zfsTestDatasetDestroy(t)
 
 	zpoolTestPoolDestroy(t)
+
+	cleanupVDisks()
 }

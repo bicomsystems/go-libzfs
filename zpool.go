@@ -549,13 +549,20 @@ func (pool *Pool) Destroy(logStr string) (err error) {
 // Before exporting the pool, all datasets within the pool are unmounted.
 // A pool can not be exported if it has a shared spare that is currently
 // being used.
-func (pool *Pool) Export(force bool) (err error) {
+func (pool *Pool) Export(force bool, log string) (err error) {
 	var force_t C.boolean_t = 0
 	if force {
 		force_t = 1
 	}
-	retcode := C.zpool_export(pool.list.zph, force_t, nil)
-	if retcode != 0 {
+	if rc := C.zpool_export(pool.list.zph, force_t, C.CString(log)); rc != 0 {
+		err = LastError()
+	}
+	return
+}
+
+// Hard force
+func (pool *Pool) ExportForce(log string) (err error) {
+	if rc := C.zpool_export_force(pool.list.zph, C.CString(log)); rc != 0 {
 		err = LastError()
 	}
 	return

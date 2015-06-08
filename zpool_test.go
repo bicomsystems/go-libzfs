@@ -26,6 +26,36 @@ func CreateTmpSparse(prefix string, size int64) (path string, err error) {
 	return
 }
 
+var s1path, s2path, s3path string
+
+// This will create sparse files in tmp directory,
+// for purpose of creating test pool.
+func createTestpoolVdisks() (err error) {
+	if s1path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+		return
+	}
+	if s2path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+		// try cleanup
+		os.Remove(s1path)
+		return
+	}
+	if s3path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+		// try cleanup
+		os.Remove(s1path)
+		os.Remove(s2path)
+		return
+	}
+	return
+}
+
+// Cleanup sparse files used for tests
+func cleanupVDisks() {
+	// try cleanup
+	os.Remove(s1path)
+	os.Remove(s2path)
+	os.Remove(s3path)
+}
+
 /* ------------------------------------------------------------------------- */
 // TESTS:
 
@@ -43,26 +73,13 @@ func zpoolTestPoolCreate(t *testing.T) {
 		p.Close()
 		TST_POOL_NAME += "0"
 	}
-
-	var s1path, s2path, s3path string
 	var err error
-	if s1path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+
+	if err = createTestpoolVdisks(); err != nil {
 		t.Error(err)
 		return
 	}
-	if s2path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
-		// try cleanup
-		os.Remove(s1path)
-		t.Error(err)
-		return
-	}
-	if s3path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
-		// try cleanup
-		os.Remove(s1path)
-		os.Remove(s2path)
-		t.Error(err)
-		return
-	}
+
 	disks := [2]string{s1path, s2path}
 
 	var vdevs, mdevs, sdevs []zfs.VDevSpec
@@ -95,10 +112,7 @@ func zpoolTestPoolCreate(t *testing.T) {
 		return
 	}
 	defer pool.Close()
-	// try cleanup
-	os.Remove(s1path)
-	os.Remove(s2path)
-	os.Remove(s3path)
+
 	println("PASS\n")
 }
 
@@ -159,6 +173,44 @@ func zpoolTestFailPoolOpen(t *testing.T) {
 	p.Close()
 }
 
+func zpoolTestExport(t *testing.T) {
+	println("TEST POOL Export( ", TST_POOL_NAME, " ) ... ")
+	p, err := zfs.PoolOpen(TST_POOL_NAME)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	p.Export(false, "Test exporting pool")
+	defer p.Close()
+	println("PASS\n")
+}
+
+func zpoolTestExportForce(t *testing.T) {
+	println("TEST POOL ExportForce( ", TST_POOL_NAME, " ) ... ")
+	p, err := zfs.PoolOpen(TST_POOL_NAME)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	p.ExportForce("Test force exporting pool")
+	defer p.Close()
+	println("PASS\n")
+}
+
+func zpoolTestImport(t *testing.T) {
+	println("TEST POOL Import( ", TST_POOL_NAME, " ) ... ")
+	p, err := zfs.PoolImport(TST_POOL_NAME, []string{"/tmp"})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer p.Close()
+	println("PASS\n")
+}
+
+/* ------------------------------------------------------------------------- */
+// EXAMPLES:
+
 func ExamplePoolProp() {
 	if pool, err := zfs.PoolOpen("SSD"); err == nil {
 		print("Pool size is: ", pool.Properties[zfs.PoolPropSize].Value)
@@ -168,9 +220,6 @@ func ExamplePoolProp() {
 		print("Error: ", err)
 	}
 }
-
-/* ------------------------------------------------------------------------- */
-// EXAMPLES:
 
 // Open and list all pools on system with them properties
 func ExamplePoolOpenAll() {

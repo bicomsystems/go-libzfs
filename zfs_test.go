@@ -23,8 +23,7 @@ func printDatasets(ds []zfs.Dataset) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf(" %30s | %10s\n", path,
-			p.Value)
+		fmt.Printf(" %30s | %10s\n", path, p.Value)
 		if len(d.Children) > 0 {
 			printDatasets(d.Children)
 		}
@@ -159,13 +158,33 @@ func ExampleDatasetOpen() {
 	d, err := zfs.DatasetOpen("TESTPOOL/DATASET1")
 	if err != nil {
 		panic(err.Error())
-		return
 	}
 	defer d.Close()
 	var p zfs.Property
 	if p, err = d.GetProperty(zfs.ZFSPropAvailable); err != nil {
 		panic(err.Error())
-		return
 	}
 	println(d.PropertyToName(zfs.ZFSPropAvailable), " = ", p.Value)
+}
+
+func ExampleDatasetOpenAll() {
+	datasets, err := zfs.DatasetOpenAll()
+	if err != nil {
+		panic(err.Error())
+	}
+	defer zfs.DatasetCloseAll(datasets)
+
+	// Print out path and type of root datasets
+	for _, d := range datasets {
+		path, err := d.Path()
+		if err != nil {
+			panic(err.Error())
+		}
+		p, err := d.GetProperty(zfs.ZFSPropType)
+		if err != nil {
+			panic(err.Error())
+		}
+		fmt.Printf("%30s | %10s\n", path, p.Value)
+	}
+
 }
