@@ -208,6 +208,59 @@ func zpoolTestImport(t *testing.T) {
 	println("PASS\n")
 }
 
+func zpoolTestPoolProp(t *testing.T) {
+	println("TEST PoolProp on ", TST_POOL_NAME, " ... ")
+	if pool, err := zfs.PoolOpen(TST_POOL_NAME); err == nil {
+		defer pool.Close()
+		// Turn on snapshot listing for pool
+		pool.SetProperty(zfs.PoolPropListsnaps, "on")
+		// Verify change is succesfull
+		if pool.Properties[zfs.PoolPropListsnaps].Value != "on" {
+			t.Error(fmt.Errorf("Update of pool property failed"))
+			return
+		}
+
+		// Test fetching property
+		_, err := pool.GetProperty(zfs.PoolPropHealth)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		// fetch all properties
+		if err = pool.ReloadProperties(); err != nil {
+			t.Error(err)
+			return
+		}
+	} else {
+		t.Error(err)
+		return
+	}
+	println("PASS\n")
+}
+
+func zpoolTestPoolStatusAndState(t *testing.T) {
+	println("TEST pool Status/State ( ", TST_POOL_NAME, " ) ... ")
+	pool, err := zfs.PoolOpen(TST_POOL_NAME)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	defer pool.Close()
+
+	if _, err = pool.Status(); err != nil {
+		t.Error(err.Error())
+		return
+	}
+
+	if _, err = pool.State(); err != nil {
+		t.Error(err.Error())
+		return
+	}
+
+	println("PASS\n")
+}
+
 /* ------------------------------------------------------------------------- */
 // EXAMPLES:
 
@@ -216,6 +269,15 @@ func ExamplePoolProp() {
 		print("Pool size is: ", pool.Properties[zfs.PoolPropSize].Value)
 		// Turn on snapshot listing for pool
 		pool.SetProperty(zfs.PoolPropListsnaps, "on")
+		println("Changed property",
+			zfs.PoolPropertyToName(zfs.PoolPropListsnaps), "to value:",
+			pool.Properties[zfs.PoolPropListsnaps].Value)
+
+		prop, err := pool.GetProperty(zfs.PoolPropHealth)
+		if err != nil {
+			panic(err)
+		}
+		println("Update and print out pool health:", prop.Value)
 	} else {
 		print("Error: ", err)
 	}
@@ -244,7 +306,8 @@ func ExamplePoolOpenAll() {
 			if pkey == zfs.PoolPropName {
 				continue // Skip name its already printed above
 			}
-			fmt.Printf("|%14s  | %20s  | %15s  |\n", p.PropertyToName(pkey),
+			fmt.Printf("|%14s  | %20s  | %15s  |\n",
+				zfs.PoolPropertyToName(pkey),
 				prop.Value, prop.Source)
 			println("")
 		}

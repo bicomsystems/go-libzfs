@@ -164,7 +164,7 @@ func ExampleDatasetOpen() {
 	if p, err = d.GetProperty(zfs.ZFSPropAvailable); err != nil {
 		panic(err.Error())
 	}
-	println(d.PropertyToName(zfs.ZFSPropAvailable), " = ", p.Value)
+	println(zfs.DatasetPropertyToName(zfs.ZFSPropAvailable), " = ", p.Value)
 }
 
 func ExampleDatasetOpenAll() {

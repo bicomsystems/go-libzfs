@@ -13,6 +13,8 @@ func Test(t *testing.T) {
 	zpoolTestImport(t)
 	zpoolTestExportForce(t)
 	zpoolTestImport(t)
+	zpoolTestPoolProp(t)
+	zpoolTestPoolStatusAndState(t)
 	zpoolTestPoolOpenAll(t)
 	zpoolTestFailPoolOpen(t)
 

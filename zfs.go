@@ -266,6 +266,10 @@ func (d *Dataset) SetProperty(p ZFSProp, value string) (err error) {
 	if errcode != 0 {
 		err = LastError()
 	}
+	// Update Properties member with change made
+	if _, err = d.GetProperty(p); err != nil {
+		return
+	}
 	return
 }
 
@@ -398,7 +402,7 @@ func (d *Dataset) UnmountAll(flags int) (err error) {
 // ( returns built in string representation of property name).
 // This is optional, you can represent each property with string
 // name of choice.
-func (d *Dataset) PropertyToName(p ZFSProp) (name string) {
+func DatasetPropertyToName(p ZFSProp) (name string) {
 	if p == ZFSNumProps {
 		return "numofprops"
 	}

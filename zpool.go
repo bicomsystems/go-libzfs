@@ -127,7 +127,7 @@ func PoolCloseAll(pools []Pool) {
 // ( returns built in string representation of property name).
 // This is optional, you can represent each property with string
 // name of choice.
-func (pool *Pool) PropertyToName(p PoolProp) (name string) {
+func PoolPropertyToName(p PoolProp) (name string) {
 	if p == PoolNumProps {
 		return "numofprops"
 	}
@@ -171,7 +171,7 @@ func (pool *Pool) GetProperty(p PoolProp) (prop Property, err error) {
 		// First check if property exist at all
 		if p < PoolPropName || p > PoolNumProps {
 			err = errors.New(fmt.Sprint("Unknown zpool property: ",
-				pool.PropertyToName(p)))
+				PoolPropertyToName(p)))
 			return
 		}
 		var list C.property_list_t
@@ -210,15 +210,17 @@ func (pool *Pool) SetProperty(p PoolProp, value string) (err error) {
 		// First check if property exist at all
 		if p < PoolPropName || p > PoolNumProps {
 			err = errors.New(fmt.Sprint("Unknown zpool property: ",
-				pool.PropertyToName(p)))
+				PoolPropertyToName(p)))
 			return
 		}
-		r := C.zpool_set_prop(pool.list.zph, C.CString(pool.PropertyToName(p)), C.CString(value))
+		r := C.zpool_set_prop(pool.list.zph, C.CString(PoolPropertyToName(p)), C.CString(value))
 		if r != 0 {
 			err = LastError()
 		} else {
 			// Update Properties member with change made
-			_, err = pool.GetProperty(p)
+			if _, err = pool.GetProperty(p); err != nil {
+				return
+			}
 		}
 		return
 	}
