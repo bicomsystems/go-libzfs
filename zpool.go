@@ -136,6 +136,13 @@ func PoolPropertyToName(p PoolProp) (name string) {
 	return
 }
 
+//  Map POOL STATE to string.
+func PoolStateToName(state PoolState) (name string) {
+	ps := C.pool_state_t(state)
+	name = C.GoString(C.zpool_pool_state_to_name(ps))
+	return
+}
+
 // Re-read ZFS pool properties and features, refresh Pool.Properties and
 // Pool.Features map
 func (pool *Pool) ReloadProperties() (err error) {

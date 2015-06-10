@@ -227,6 +227,17 @@ func zpoolTestPoolProp(t *testing.T) {
 			return
 		}
 
+		// this test pool should not be bootable
+		prop, err := pool.GetProperty(zfs.PoolPropBootfs)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if prop.Value != "-" {
+			t.Errorf("Failed at bootable fs property evaluation")
+			return
+		}
+
 		// fetch all properties
 		if err = pool.ReloadProperties(); err != nil {
 			t.Error(err)
@@ -253,10 +264,12 @@ func zpoolTestPoolStatusAndState(t *testing.T) {
 		return
 	}
 
-	if _, err = pool.State(); err != nil {
+	var pstate zfs.PoolState
+	if pstate, err = pool.State(); err != nil {
 		t.Error(err.Error())
 		return
 	}
+	println("POOL", TST_POOL_NAME, "state:", zfs.PoolStateToName(pstate))
 
 	println("PASS\n")
 }
@@ -411,4 +424,17 @@ func ExamplePool_ExportForce() {
 	if err = p.ExportForce("Example exporting pool"); err != nil {
 		panic(err)
 	}
+}
+
+func ExamplePool_State() {
+	p, err := zfs.PoolOpen("TESTPOOL")
+	if err != nil {
+		panic(err)
+	}
+	defer p.Close()
+	pstate, err := p.State()
+	if err != nil {
+		panic(err)
+	}
+	println("POOL TESTPOOL state:", zfs.PoolStateToName(pstate))
 }
