@@ -152,6 +152,10 @@ const (
 	PoolPropComment
 	PoolPropExpandsz
 	PoolPropFreeing
+	PoolPropFragmentaion
+	PoolPropLeaked
+	PoolPropMaxBlockSize
+	PoolPropTName
 	PoolNumProps
 )
 
@@ -235,6 +239,7 @@ const (
 	ZFSPropSelinux_rootcontext
 	ZFSPropRelatime
 	ZFSPropRedundant_metadata
+	ZFSPropOverlay
 	ZFSNumProps
 )
 
