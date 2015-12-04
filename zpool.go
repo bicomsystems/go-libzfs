@@ -10,16 +10,17 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 const (
 	msgPoolIsNil = "Pool handle not initialized or its closed"
 )
 
-type PoolProperties map[PoolProp]string
-type ZFSProperties map[ZFSProp]string
+// PoolProperties type is map of pool properties name -> value
+type PoolProperties map[Prop]string
 
-// Object represents handler to single ZFS pool
+// Pool object represents handler to single ZFS pool
 //
 /* Pool.Properties map[string]Property
  */
@@ -34,11 +35,11 @@ type Pool struct {
 	Features   map[string]string
 }
 
-// Open ZFS pool handler by name.
+// PoolOpen open ZFS pool handler by name.
 // Returns Pool object, requires Pool.Close() to be called explicitly
 // for memory cleanup after object is not needed anymore.
 func PoolOpen(name string) (pool Pool, err error) {
-	pool.list = C.zpool_list_open(libzfs_handle, C.CString(name))
+	pool.list = C.zpool_list_open(libzfsHandle, C.CString(name))
 	if pool.list != nil {
 		err = pool.ReloadProperties()
 		return
@@ -47,7 +48,7 @@ func PoolOpen(name string) (pool Pool, err error) {
 	return
 }
 
-// Given a list of directories to search, find and import pool with matching
+// PoolImport given a list of directories to search, find and import pool with matching
 // name stored on disk.
 func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
 	errPoolList := errors.New("Failed to list pools")
@@ -59,7 +60,7 @@ func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
 		C.strings_setat(cpaths, C.int(i), C.CString(path))
 	}
 
-	pools := C.zpool_find_import(libzfs_handle, C.int(numofp), cpaths)
+	pools := C.zpool_find_import(libzfsHandle, C.int(numofp), cpaths)
 	defer C.nvlist_free(pools)
 
 	elem = C.nvlist_next_nvpair(pools, elem)
@@ -88,7 +89,7 @@ func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
 		return
 	}
 
-	retcode := C.zpool_import(libzfs_handle, config, C.CString(name), nil)
+	retcode := C.zpool_import(libzfsHandle, config, C.CString(name), nil)
 	if retcode != 0 {
 		err = LastError()
 		return
@@ -97,12 +98,12 @@ func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
 	return
 }
 
-// Open all active ZFS pools on current system.
+// PoolOpenAll open all active ZFS pools on current system.
 // Returns array of Pool handlers, each have to be closed after not needed
 // anymore. Call Pool.Close() method.
 func PoolOpenAll() (pools []Pool, err error) {
 	var pool Pool
-	errcode := C.zpool_list(libzfs_handle, &pool.list)
+	errcode := C.zpool_list(libzfsHandle, &pool.list)
 	for pool.list != nil {
 		err = pool.ReloadProperties()
 		if err != nil {
@@ -117,17 +118,18 @@ func PoolOpenAll() (pools []Pool, err error) {
 	return
 }
 
+// PoolCloseAll close all pools in given slice
 func PoolCloseAll(pools []Pool) {
 	for _, p := range pools {
 		p.Close()
 	}
 }
 
-// Convert property to name
+// PoolPropertyToName convert property to name
 // ( returns built in string representation of property name).
 // This is optional, you can represent each property with string
 // name of choice.
-func PoolPropertyToName(p PoolProp) (name string) {
+func PoolPropertyToName(p Prop) (name string) {
 	if p == PoolNumProps {
 		return "numofprops"
 	}
@@ -136,15 +138,15 @@ func PoolPropertyToName(p PoolProp) (name string) {
 	return
 }
 
-//  Map POOL STATE to string.
+// PoolStateToName maps POOL STATE to string.
 func PoolStateToName(state PoolState) (name string) {
 	ps := C.pool_state_t(state)
 	name = C.GoString(C.zpool_pool_state_to_name(ps))
 	return
 }
 
-// Re-read ZFS pool properties and features, refresh Pool.Properties and
-// Pool.Features map
+// ReloadProperties re-read ZFS pool properties and features, refresh
+// Pool.Properties and Pool.Features map
 func (pool *Pool) ReloadProperties() (err error) {
 	propList := C.read_zpool_properties(pool.list.zph)
 	if propList == nil {
@@ -165,15 +167,15 @@ func (pool *Pool) ReloadProperties() (err error) {
 		"async_destroy": "disabled",
 		"empty_bpobj":   "disabled",
 		"lz4_compress":  "disabled"}
-	for name, _ := range pool.Features {
+	for name := range pool.Features {
 		pool.GetFeature(name)
 	}
 	return
 }
 
-// Reload and return single specified property. This also reloads requested
+// GetProperty reload and return single specified property. This also reloads requested
 // property in Properties map.
-func (pool *Pool) GetProperty(p PoolProp) (prop Property, err error) {
+func (pool *Pool) GetProperty(p Prop) (prop Property, err error) {
 	if pool.list != nil {
 		// First check if property exist at all
 		if p < PoolPropName || p > PoolNumProps {
@@ -194,7 +196,7 @@ func (pool *Pool) GetProperty(p PoolProp) (prop Property, err error) {
 	return prop, errors.New(msgPoolIsNil)
 }
 
-// Reload and return single specified feature. This also reloads requested
+// GetFeature reload and return single specified feature. This also reloads requested
 // feature in Features map.
 func (pool *Pool) GetFeature(name string) (value string, err error) {
 	var fvalue [512]C.char
@@ -209,10 +211,10 @@ func (pool *Pool) GetFeature(name string) (value string, err error) {
 	return
 }
 
-// Set ZFS pool property to value. Not all properties can be set,
+// SetProperty set ZFS pool property to value. Not all properties can be set,
 // some can be set only at creation time and some are read only.
 // Always check if returned error and its description.
-func (pool *Pool) SetProperty(p PoolProp, value string) (err error) {
+func (pool *Pool) SetProperty(p Prop, value string) (err error) {
 	if pool.list != nil {
 		// First check if property exist at all
 		if p < PoolPropName || p > PoolNumProps {
@@ -241,7 +243,7 @@ func (pool *Pool) Close() {
 	pool.list = nil
 }
 
-// Get (re-read) ZFS pool name property
+// Name get (re-read) ZFS pool name property
 func (pool *Pool) Name() (name string, err error) {
 	if pool.list == nil {
 		err = errors.New(msgPoolIsNil)
@@ -252,7 +254,7 @@ func (pool *Pool) Name() (name string, err error) {
 	return
 }
 
-// Get ZFS pool state
+// State get ZFS pool state
 // Return the state of the pool (ACTIVE or UNAVAILABLE)
 func (pool *Pool) State() (state PoolState, err error) {
 	if pool.list == nil {
@@ -263,7 +265,7 @@ func (pool *Pool) State() (state PoolState, err error) {
 	return
 }
 
-// ZFS virtual device specification
+// VDevSpec ZFS virtual device specification
 type VDevSpec struct {
 	Type    VDevType
 	Devices []VDevSpec // groups other devices (e.g. mirror)
@@ -271,31 +273,31 @@ type VDevSpec struct {
 	Path    string
 }
 
-func (self *VDevSpec) isGrouping() (grouping bool, mindevs, maxdevs int) {
+func (vdev *VDevSpec) isGrouping() (grouping bool, mindevs, maxdevs int) {
 	maxdevs = int(^uint(0) >> 1)
-	if self.Type == VDevTypeRaidz {
+	if vdev.Type == VDevTypeRaidz {
 		grouping = true
-		if self.Parity == 0 {
-			self.Parity = 1
+		if vdev.Parity == 0 {
+			vdev.Parity = 1
 		}
-		if self.Parity > 254 {
-			self.Parity = 254
+		if vdev.Parity > 254 {
+			vdev.Parity = 254
 		}
-		mindevs = int(self.Parity) + 1
+		mindevs = int(vdev.Parity) + 1
 		maxdevs = 255
-	} else if self.Type == VDevTypeMirror {
+	} else if vdev.Type == VDevTypeMirror {
 		grouping = true
 		mindevs = 2
-	} else if self.Type == VDevTypeLog || self.Type == VDevTypeSpare || self.Type == VDevTypeL2cache {
+	} else if vdev.Type == VDevTypeLog || vdev.Type == VDevTypeSpare || vdev.Type == VDevTypeL2cache {
 		grouping = true
 		mindevs = 1
 	}
 	return
 }
 
-func (self *VDevSpec) isLog() (r C.uint64_t) {
+func (vdev *VDevSpec) isLog() (r C.uint64_t) {
 	r = 0
-	if self.Type == VDevTypeLog {
+	if vdev.Type == VDevTypeLog {
 		r = 1
 	}
 	return
@@ -317,7 +319,7 @@ func toCPoolProperties(props PoolProperties) (cprops *C.nvlist_t) {
 	return
 }
 
-func toCZFSProperties(props ZFSProperties) (cprops *C.nvlist_t) {
+func toCDatasetProperties(props DatasetProperties) (cprops *C.nvlist_t) {
 	cprops = nil
 	for prop, value := range props {
 		name := C.zfs_prop_to_name(C.zfs_prop_t(prop))
@@ -361,7 +363,7 @@ func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
 	defer C.nvlist_free_array(l2cache)
 	for i, vdev := range vdevs {
 		grouping, mindevs, maxdevs := vdev.isGrouping()
-		var child *C.nvlist_t = nil
+		var child *C.nvlist_t
 		// fmt.Println(vdev.Type)
 		if r := C.nvlist_alloc(&child, C.NV_UNIQUE_NAME, 0); r != 0 {
 			err = errors.New("Failed to allocate vdev")
@@ -369,8 +371,9 @@ func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
 		}
 		vcount := len(vdev.Devices)
 		if vcount < mindevs || vcount > maxdevs {
-			err = errors.New(fmt.Sprintf(
-				"Invalid vdev specification: %s supports no less than %d or more than %d devices", vdev.Type, mindevs, maxdevs))
+			err = fmt.Errorf(
+				"Invalid vdev specification: %s supports no less than %d or more than %d devices",
+				vdev.Type, mindevs, maxdevs)
 			return
 		}
 		if r := C.nvlist_add_string(child, C.CString(C.ZPOOL_CONFIG_TYPE),
@@ -466,11 +469,11 @@ func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
 	return
 }
 
-// Create ZFS pool per specs, features and properties of pool and root dataset
+// PoolCreate create ZFS pool per specs, features and properties of pool and root dataset
 func PoolCreate(name string, vdevs []VDevSpec, features map[string]string,
-	props PoolProperties, fsprops ZFSProperties) (pool Pool, err error) {
+	props PoolProperties, fsprops DatasetProperties) (pool Pool, err error) {
 	// create root vdev nvroot
-	var nvroot *C.nvlist_t = nil
+	var nvroot *C.nvlist_t
 	if r := C.nvlist_alloc(&nvroot, C.NV_UNIQUE_NAME, 0); r != 0 {
 		err = errors.New("Failed to allocate root vdev")
 		return
@@ -495,7 +498,7 @@ func PoolCreate(name string, vdevs []VDevSpec, features map[string]string,
 		err = errors.New("Failed to allocate pool properties")
 		return
 	}
-	cfsprops := toCZFSProperties(fsprops)
+	cfsprops := toCDatasetProperties(fsprops)
 	if cfsprops != nil {
 		defer C.nvlist_free(cfsprops)
 	} else if len(fsprops) > 0 {
@@ -516,16 +519,34 @@ func PoolCreate(name string, vdevs []VDevSpec, features map[string]string,
 	}
 
 	// Create actual pool then open
-	if r := C.zpool_create(libzfs_handle, C.CString(name), nvroot,
+	if r := C.zpool_create(libzfsHandle, C.CString(name), nvroot,
 		cprops, cfsprops); r != 0 {
 		err = LastError()
+		err = errors.New(err.Error() + " (zpool_create)")
 		return
 	}
-	pool, err = PoolOpen(name)
+
+	// It can happen that pool is not immediately available,
+	// we know we just created it with success so lets wait and retry
+	// but only in case EZFS_NOENT error
+	retr := 0
+	for pool, err = PoolOpen(name); err != nil && retr < 3; retr++ {
+		errno := C.libzfs_errno(libzfsHandle)
+		if errno == ENoent {
+			time.Sleep(500 * time.Millisecond)
+		} else {
+			err = errors.New(err.Error() + " (PoolOpen)")
+			return
+		}
+		pool, err = PoolOpen(name)
+	}
+	if err != nil {
+		err = errors.New(err.Error() + " (PoolOpen)")
+	}
 	return
 }
 
-// Get pool status. Let you check if pool healthy.
+// Status get pool status. Let you check if pool healthy.
 func (pool *Pool) Status() (status PoolStatus, err error) {
 	var msgid *C.char
 	var reason C.zpool_status_t
@@ -554,22 +575,22 @@ func (pool *Pool) Destroy(logStr string) (err error) {
 	return
 }
 
-// Exports the pool from the system.
+// Export exports the pool from the system.
 // Before exporting the pool, all datasets within the pool are unmounted.
 // A pool can not be exported if it has a shared spare that is currently
 // being used.
 func (pool *Pool) Export(force bool, log string) (err error) {
-	var force_t C.boolean_t = 0
+	var forcet C.boolean_t
 	if force {
-		force_t = 1
+		forcet = 1
 	}
-	if rc := C.zpool_export(pool.list.zph, force_t, C.CString(log)); rc != 0 {
+	if rc := C.zpool_export(pool.list.zph, forcet, C.CString(log)); rc != 0 {
 		err = LastError()
 	}
 	return
 }
 
-// Hard force
+// ExportForce hard force export of the pool from the system.
 func (pool *Pool) ExportForce(log string) (err error) {
 	if rc := C.zpool_export_force(pool.list.zph, C.CString(log)); rc != 0 {
 		err = LastError()

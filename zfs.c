@@ -1,7 +1,7 @@
 /* C wrappers around some zfs calls and C in general that should simplify
  * using libzfs from go language, make go code shorter and more readable.
  */
- 
+
 #include <libzfs.h>
 #include <memory.h>
 #include <string.h>
@@ -72,7 +72,7 @@ int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop) {
 	zprop_source_t source;
 	char statbuf[INT_MAX_VALUE];
 
-	r = zfs_prop_get(zh, prop, 
+	r = zfs_prop_get(zh, prop,
 		list->value, INT_MAX_VALUE, &source, statbuf, INT_MAX_VALUE, 1);
 	if (r == 0) {
 		// strcpy(list->name, zpool_prop_to_name(prop));

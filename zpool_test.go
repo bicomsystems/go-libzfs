@@ -2,16 +2,17 @@ package zfs_test
 
 import (
 	"fmt"
-	"github.com/bicomsystems/go-libzfs"
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/bicomsystems/go-libzfs"
 )
 
 /* ------------------------------------------------------------------------- */
 // HELPERS:
 
-var TST_POOL_NAME = "TESTPOOL"
+var TSTPoolName = "TESTPOOL"
 
 func CreateTmpSparse(prefix string, size int64) (path string, err error) {
 	sf, err := ioutil.TempFile("/tmp", prefix)
@@ -66,12 +67,12 @@ func zpoolTestPoolCreate(t *testing.T) {
 	// first check if pool with same name already exist
 	// we don't want conflict
 	for {
-		p, err := zfs.PoolOpen(TST_POOL_NAME)
+		p, err := zfs.PoolOpen(TSTPoolName)
 		if err != nil {
 			break
 		}
 		p.Close()
-		TST_POOL_NAME += "0"
+		TSTPoolName += "0"
 	}
 	var err error
 
@@ -94,15 +95,15 @@ func zpoolTestPoolCreate(t *testing.T) {
 		zfs.VDevSpec{Type: zfs.VDevTypeSpare, Devices: sdevs},
 	}
 
-	props := make(map[zfs.PoolProp]string)
-	fsprops := make(map[zfs.ZFSProp]string)
+	props := make(map[zfs.Prop]string)
+	fsprops := make(map[zfs.Prop]string)
 	features := make(map[string]string)
-	fsprops[zfs.ZFSPropMountpoint] = "none"
+	fsprops[zfs.DatasetPropMountpoint] = "none"
 	features["async_destroy"] = "enabled"
 	features["empty_bpobj"] = "enabled"
 	features["lz4_compress"] = "enabled"
 
-	pool, err := zfs.PoolCreate(TST_POOL_NAME, vdevs, features, props, fsprops)
+	pool, err := zfs.PoolCreate(TSTPoolName, vdevs, features, props, fsprops)
 	if err != nil {
 		t.Error(err)
 		// try cleanup
@@ -113,7 +114,7 @@ func zpoolTestPoolCreate(t *testing.T) {
 	}
 	defer pool.Close()
 
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 // Open and list all pools and them state on the system
@@ -143,22 +144,22 @@ func zpoolTestPoolOpenAll(t *testing.T) {
 		println("\tPool: ", pname, " state: ", pstate)
 		p.Close()
 	}
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestPoolDestroy(t *testing.T) {
-	println("TEST POOL Destroy( ", TST_POOL_NAME, " ) ... ")
-	p, err := zfs.PoolOpen(TST_POOL_NAME)
+	println("TEST POOL Destroy( ", TSTPoolName, " ) ... ")
+	p, err := zfs.PoolOpen(TSTPoolName)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer p.Close()
-	if err = p.Destroy("Test of pool destroy (" + TST_POOL_NAME + ")"); err != nil {
+	if err = p.Destroy("Test of pool destroy (" + TSTPoolName + ")"); err != nil {
 		t.Error(err.Error())
 		return
 	}
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestFailPoolOpen(t *testing.T) {
@@ -166,7 +167,7 @@ func zpoolTestFailPoolOpen(t *testing.T) {
 	pname := "fail to open this pool"
 	p, err := zfs.PoolOpen(pname)
 	if err != nil {
-		println("PASS\n")
+		print("PASS\n\n")
 		return
 	}
 	t.Error("PoolOpen pass when it should fail")
@@ -174,43 +175,43 @@ func zpoolTestFailPoolOpen(t *testing.T) {
 }
 
 func zpoolTestExport(t *testing.T) {
-	println("TEST POOL Export( ", TST_POOL_NAME, " ) ... ")
-	p, err := zfs.PoolOpen(TST_POOL_NAME)
+	println("TEST POOL Export( ", TSTPoolName, " ) ... ")
+	p, err := zfs.PoolOpen(TSTPoolName)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	p.Export(false, "Test exporting pool")
 	defer p.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestExportForce(t *testing.T) {
-	println("TEST POOL ExportForce( ", TST_POOL_NAME, " ) ... ")
-	p, err := zfs.PoolOpen(TST_POOL_NAME)
+	println("TEST POOL ExportForce( ", TSTPoolName, " ) ... ")
+	p, err := zfs.PoolOpen(TSTPoolName)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	p.ExportForce("Test force exporting pool")
 	defer p.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestImport(t *testing.T) {
-	println("TEST POOL Import( ", TST_POOL_NAME, " ) ... ")
-	p, err := zfs.PoolImport(TST_POOL_NAME, []string{"/tmp"})
+	println("TEST POOL Import( ", TSTPoolName, " ) ... ")
+	p, err := zfs.PoolImport(TSTPoolName, []string{"/tmp"})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer p.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestPoolProp(t *testing.T) {
-	println("TEST PoolProp on ", TST_POOL_NAME, " ... ")
-	if pool, err := zfs.PoolOpen(TST_POOL_NAME); err == nil {
+	println("TEST PoolProp on ", TSTPoolName, " ... ")
+	if pool, err := zfs.PoolOpen(TSTPoolName); err == nil {
 		defer pool.Close()
 		// Turn on snapshot listing for pool
 		pool.SetProperty(zfs.PoolPropListsnaps, "on")
@@ -247,12 +248,12 @@ func zpoolTestPoolProp(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zpoolTestPoolStatusAndState(t *testing.T) {
-	println("TEST pool Status/State ( ", TST_POOL_NAME, " ) ... ")
-	pool, err := zfs.PoolOpen(TST_POOL_NAME)
+	println("TEST pool Status/State ( ", TSTPoolName, " ) ... ")
+	pool, err := zfs.PoolOpen(TSTPoolName)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -269,9 +270,9 @@ func zpoolTestPoolStatusAndState(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	println("POOL", TST_POOL_NAME, "state:", zfs.PoolStateToName(pstate))
+	println("POOL", TSTPoolName, "state:", zfs.PoolStateToName(pstate))
 
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 /* ------------------------------------------------------------------------- */
@@ -315,7 +316,7 @@ func ExamplePoolOpenAll() {
 
 		// Iterate pool properties and print name, value and source
 		for key, prop := range p.Properties {
-			pkey := zfs.PoolProp(key)
+			pkey := zfs.Prop(key)
 			if pkey == zfs.PoolPropName {
 				continue // Skip name its already printed above
 			}
@@ -353,14 +354,14 @@ func ExamplePoolCreate() {
 	}
 
 	// pool properties
-	props := make(map[zfs.PoolProp]string)
+	props := make(map[zfs.Prop]string)
 	// root dataset filesystem properties
-	fsprops := make(map[zfs.ZFSProp]string)
+	fsprops := make(map[zfs.Prop]string)
 	// pool features
 	features := make(map[string]string)
 
 	// Turn off auto mounting by ZFS
-	fsprops[zfs.ZFSPropMountpoint] = "none"
+	fsprops[zfs.DatasetPropMountpoint] = "none"
 
 	// Enable some features
 	features["async_destroy"] = "enabled"

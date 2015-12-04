@@ -14,20 +14,30 @@ const (
 	msgDatasetIsNil = "Dataset handle not initialized or its closed"
 )
 
+// DatasetProperties type is map of dataset or volume properties prop -> value
+type DatasetProperties map[Prop]string
+
+// DatasetType defines enum of dataset types
 type DatasetType int32
 
 const (
+	// DatasetTypeFilesystem - file system dataset
 	DatasetTypeFilesystem DatasetType = (1 << 0)
-	DatasetTypeSnapshot               = (1 << 1)
-	DatasetTypeVolume                 = (1 << 2)
-	DatasetTypePool                   = (1 << 3)
-	DatasetTypeBookmark               = (1 << 4)
+	// DatasetTypeSnapshot - snapshot of dataset
+	DatasetTypeSnapshot = (1 << 1)
+	// DatasetTypeVolume - volume (virtual block device) dataset
+	DatasetTypeVolume = (1 << 2)
+	// DatasetTypePool - pool dataset
+	DatasetTypePool = (1 << 3)
+	// DatasetTypeBookmark - bookmark dataset
+	DatasetTypeBookmark = (1 << 4)
 )
 
+// Dataset - ZFS dataset object
 type Dataset struct {
 	list       *C.dataset_list_t
 	Type       DatasetType
-	Properties map[ZFSProp]Property
+	Properties map[Prop]Property
 	Children   []Dataset
 }
 
@@ -37,7 +47,7 @@ func (d *Dataset) openChildren() (err error) {
 	errcode := C.dataset_list_children(d.list.zh, &(dataset.list))
 	for dataset.list != nil {
 		dataset.Type = DatasetType(C.zfs_get_type(dataset.list.zh))
-		dataset.Properties = make(map[ZFSProp]Property)
+		dataset.Properties = make(map[Prop]Property)
 		err = dataset.ReloadProperties()
 		if err != nil {
 			return
@@ -49,7 +59,7 @@ func (d *Dataset) openChildren() (err error) {
 		err = LastError()
 		return
 	}
-	for ci, _ := range d.Children {
+	for ci := range d.Children {
 		if err = d.Children[ci].openChildren(); err != nil {
 			return
 		}
@@ -57,11 +67,11 @@ func (d *Dataset) openChildren() (err error) {
 	return
 }
 
-// Recursive get handles to all available datasets on system
+// DatasetOpenAll recursive get handles to all available datasets on system
 // (file-systems, volumes or snapshots).
 func DatasetOpenAll() (datasets []Dataset, err error) {
 	var dataset Dataset
-	errcode := C.dataset_list_root(libzfs_handle, &dataset.list)
+	errcode := C.dataset_list_root(libzfsHandle, &dataset.list)
 	for dataset.list != nil {
 		dataset.Type = DatasetType(C.zfs_get_type(dataset.list.zh))
 		err = dataset.ReloadProperties()
@@ -75,7 +85,7 @@ func DatasetOpenAll() (datasets []Dataset, err error) {
 		err = LastError()
 		return
 	}
-	for ci, _ := range datasets {
+	for ci := range datasets {
 		if err = datasets[ci].openChildren(); err != nil {
 			return
 		}
@@ -83,24 +93,25 @@ func DatasetOpenAll() (datasets []Dataset, err error) {
 	return
 }
 
-// Close all datasets in slice and all of its recursive children datasets
+// DatasetCloseAll close all datasets in slice and all of its recursive
+// children datasets
 func DatasetCloseAll(datasets []Dataset) {
 	for _, d := range datasets {
 		d.Close()
 	}
 }
 
-// Open dataset and all of its recursive children datasets
+// DatasetOpen open dataset and all of its recursive children datasets
 func DatasetOpen(path string) (d Dataset, err error) {
 	d.list = C.create_dataset_list_item()
-	d.list.zh = C.zfs_open(libzfs_handle, C.CString(path), 0xF)
+	d.list.zh = C.zfs_open(libzfsHandle, C.CString(path), 0xF)
 
 	if d.list.zh == nil {
 		err = LastError()
 		return
 	}
 	d.Type = DatasetType(C.zfs_get_type(d.list.zh))
-	d.Properties = make(map[ZFSProp]Property)
+	d.Properties = make(map[Prop]Property)
 	err = d.ReloadProperties()
 	if err != nil {
 		return
@@ -109,7 +120,7 @@ func DatasetOpen(path string) (d Dataset, err error) {
 	return
 }
 
-func datasetPropertiesTo_nvlist(props map[ZFSProp]Property) (
+func datasetPropertiesTonvlist(props map[Prop]Property) (
 	cprops *C.nvlist_t, err error) {
 	// convert properties to nvlist C type
 	r := C.nvlist_alloc(&cprops, C.NV_UNIQUE_NAME, 0)
@@ -129,16 +140,17 @@ func datasetPropertiesTo_nvlist(props map[ZFSProp]Property) (
 	return
 }
 
-// Create a new filesystem or volume on path representing pool/dataset or pool/parent/dataset
+// DatasetCreate create a new filesystem or volume on path representing
+// pool/dataset or pool/parent/dataset
 func DatasetCreate(path string, dtype DatasetType,
-	props map[ZFSProp]Property) (d Dataset, err error) {
+	props map[Prop]Property) (d Dataset, err error) {
 	var cprops *C.nvlist_t
-	if cprops, err = datasetPropertiesTo_nvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
 
-	errcode := C.zfs_create(libzfs_handle, C.CString(path),
+	errcode := C.zfs_create(libzfsHandle, C.CString(path),
 		C.zfs_type_t(dtype), cprops)
 	if errcode != 0 {
 		err = LastError()
@@ -146,7 +158,8 @@ func DatasetCreate(path string, dtype DatasetType,
 	return
 }
 
-// Close dataset and all its recursive children datasets (close handle and cleanup dataset object/s from memory)
+// Close close dataset and all its recursive children datasets (close handle
+// and cleanup dataset object/s from memory)
 func (d *Dataset) Close() {
 	if d.list != nil && d.list.zh != nil {
 		C.dataset_list_close(d.list)
@@ -156,7 +169,7 @@ func (d *Dataset) Close() {
 	}
 }
 
-// Destroys the dataset.  The caller must make sure that the filesystem
+// Destroy destroys the dataset.  The caller must make sure that the filesystem
 // isn't mounted, and that there are no active dependents. Set Defer argument
 // to true to defer destruction for when dataset is not in use.
 func (d *Dataset) Destroy(Defer bool) (err error) {
@@ -165,13 +178,13 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 		if e != nil {
 			return
 		}
-		dsType, e := d.GetProperty(ZFSPropType)
+		dsType, e := d.GetProperty(DatasetPropType)
 		err = errors.New("Cannot destroy dataset " + path +
 			": " + dsType.Value + " has children")
 		return
 	}
 	if d.list != nil {
-		if ec := C.zfs_destroy(d.list.zh, boolean_t(Defer)); ec != 0 {
+		if ec := C.zfs_destroy(d.list.zh, booleanT(Defer)); ec != 0 {
 			err = LastError()
 		}
 	} else {
@@ -180,7 +193,7 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 	return
 }
 
-// Recursively destroy children of dataset and dataset.
+// DestroyRecursive recursively destroy children of dataset and dataset.
 func (d *Dataset) DestroyRecursive() (err error) {
 	if len(d.Children) > 0 {
 		for _, c := range d.Children {
@@ -197,6 +210,7 @@ func (d *Dataset) DestroyRecursive() (err error) {
 	return
 }
 
+// Pool returns pool dataset belongs to
 func (d *Dataset) Pool() (p Pool, err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -212,6 +226,7 @@ func (d *Dataset) Pool() (p Pool, err error) {
 	return
 }
 
+// ReloadProperties re-read dataset's properties
 func (d *Dataset) ReloadProperties() (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -220,8 +235,8 @@ func (d *Dataset) ReloadProperties() (err error) {
 	var plist *C.property_list_t
 	plist = C.new_property_list()
 	defer C.free_properties(plist)
-	d.Properties = make(map[ZFSProp]Property)
-	for prop := ZFSPropType; prop < ZFSNumProps; prop++ {
+	d.Properties = make(map[Prop]Property)
+	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
 		errcode := C.read_dataset_property(d.list.zh, plist, C.int(prop))
 		if errcode != 0 {
 			continue
@@ -232,9 +247,9 @@ func (d *Dataset) ReloadProperties() (err error) {
 	return
 }
 
-// Reload and return single specified property. This also reloads requested
+// GetProperty reload and return single specified property. This also reloads requested
 // property in Properties map.
-func (d *Dataset) GetProperty(p ZFSProp) (prop Property, err error) {
+func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
@@ -253,10 +268,10 @@ func (d *Dataset) GetProperty(p ZFSProp) (prop Property, err error) {
 	return
 }
 
-// Set ZFS dataset property to value. Not all properties can be set,
+// SetProperty set ZFS dataset property to value. Not all properties can be set,
 // some can be set only at creation time and some are read only.
 // Always check if returned error and its description.
-func (d *Dataset) SetProperty(p ZFSProp, value string) (err error) {
+func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
@@ -273,15 +288,15 @@ func (d *Dataset) SetProperty(p ZFSProp, value string) (err error) {
 	return
 }
 
-// Clones the dataset.  The target must be of the same type as
+// Clone - clones the dataset.  The target must be of the same type as
 // the source.
-func (d *Dataset) Clone(target string, props map[ZFSProp]Property) (rd Dataset, err error) {
+func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err error) {
 	var cprops *C.nvlist_t
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	if cprops, err = datasetPropertiesTo_nvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
@@ -293,14 +308,14 @@ func (d *Dataset) Clone(target string, props map[ZFSProp]Property) (rd Dataset, 
 	return
 }
 
-// Create dataset snapshot. Set recur to true to snapshot child datasets.
-func DatasetSnapshot(path string, recur bool, props map[ZFSProp]Property) (rd Dataset, err error) {
+// DatasetSnapshot create dataset snapshot. Set recur to true to snapshot child datasets.
+func DatasetSnapshot(path string, recur bool, props map[Prop]Property) (rd Dataset, err error) {
 	var cprops *C.nvlist_t
-	if cprops, err = datasetPropertiesTo_nvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
-	if errc := C.zfs_snapshot(libzfs_handle, C.CString(path), boolean_t(recur), cprops); errc != 0 {
+	if errc := C.zfs_snapshot(libzfsHandle, C.CString(path), booleanT(recur), cprops); errc != 0 {
 		err = LastError()
 		return
 	}
@@ -308,7 +323,7 @@ func DatasetSnapshot(path string, recur bool, props map[ZFSProp]Property) (rd Da
 	return
 }
 
-// Return zfs dataset path/name
+// Path return zfs dataset path/name
 func (d *Dataset) Path() (path string, err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -319,14 +334,14 @@ func (d *Dataset) Path() (path string, err error) {
 	return
 }
 
-// Rollabck dataset snapshot
+// Rollback rollabck's dataset snapshot
 func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
 	if errc := C.zfs_rollback(d.list.zh,
-		snap.list.zh, boolean_t(force)); errc != 0 {
+		snap.list.zh, booleanT(force)); errc != 0 {
 		err = LastError()
 	}
 	return
@@ -334,20 +349,20 @@ func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 
 // Rename dataset
 func (d *Dataset) Rename(newname string, recur,
-	force_umount bool) (err error) {
+	forceUnmount bool) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
 	if errc := C.zfs_rename(d.list.zh, C.CString(newname),
-		boolean_t(recur), boolean_t(force_umount)); errc != 0 {
+		booleanT(recur), booleanT(forceUnmount)); errc != 0 {
 		err = LastError()
 	}
 	return
 }
 
-// Checks to see if the mount is active.  If the filesystem is mounted, fills
-// in 'where' with the current mountpoint, and returns true.  Otherwise,
+// IsMounted checks to see if the mount is active.  If the filesystem is mounted,
+// sets in 'where' argument the current mountpoint, and returns true.  Otherwise,
 // returns false.
 func (d *Dataset) IsMounted() (mounted bool, where string) {
 	var cw *C.char
@@ -386,7 +401,8 @@ func (d *Dataset) Unmount(flags int) (err error) {
 	return
 }
 
-// Unmount this filesystem and any children inheriting the mountpoint property.
+// UnmountAll unmount this filesystem and any children inheriting the
+// mountpoint property.
 func (d *Dataset) UnmountAll(flags int) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -398,12 +414,12 @@ func (d *Dataset) UnmountAll(flags int) (err error) {
 	return
 }
 
-// Convert property to name
+// DatasetPropertyToName convert property to name
 // ( returns built in string representation of property name).
 // This is optional, you can represent each property with string
 // name of choice.
-func DatasetPropertyToName(p ZFSProp) (name string) {
-	if p == ZFSNumProps {
+func DatasetPropertyToName(p Prop) (name string) {
+	if p == DatasetNumProps {
 		return "numofprops"
 	}
 	prop := C.zfs_prop_t(p)

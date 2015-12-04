@@ -2,15 +2,16 @@ package zfs_test
 
 import (
 	"fmt"
-	"github.com/bicomsystems/go-libzfs"
 	"testing"
+
+	"github.com/bicomsystems/go-libzfs"
 )
 
 /* ------------------------------------------------------------------------- */
 // HELPERS:
-var TST_DATASET_PATH = TST_POOL_NAME + "/DATASET"
-var TST_VOLUME_PATH = TST_DATASET_PATH + "/VOLUME"
-var TST_DATASET_PATH_SNAP = TST_DATASET_PATH + "@test"
+var TSTDatasetPath = TSTPoolName + "/DATASET"
+var TSTVolumePath = TSTDatasetPath + "/VOLUME"
+var TSTDatasetPathSnap = TSTDatasetPath + "@test"
 
 func printDatasets(ds []zfs.Dataset) error {
 	for _, d := range ds {
@@ -19,7 +20,7 @@ func printDatasets(ds []zfs.Dataset) error {
 		if err != nil {
 			return err
 		}
-		p, err := d.GetProperty(zfs.ZFSPropType)
+		p, err := d.GetProperty(zfs.DatasetPropType)
 		if err != nil {
 			return err
 		}
@@ -36,45 +37,45 @@ func printDatasets(ds []zfs.Dataset) error {
 
 func zfsTestDatasetCreate(t *testing.T) {
 	// reinit names used in case TESTPOOL was in conflict
-	TST_DATASET_PATH = TST_POOL_NAME + "/DATASET"
-	TST_VOLUME_PATH = TST_DATASET_PATH + "/VOLUME"
-	TST_DATASET_PATH_SNAP = TST_DATASET_PATH + "@test"
+	TSTDatasetPath = TSTPoolName + "/DATASET"
+	TSTVolumePath = TSTDatasetPath + "/VOLUME"
+	TSTDatasetPathSnap = TSTDatasetPath + "@test"
 
-	println("TEST DatasetCreate(", TST_DATASET_PATH, ") (filesystem) ... ")
-	props := make(map[zfs.ZFSProp]zfs.Property)
-	d, err := zfs.DatasetCreate(TST_DATASET_PATH, zfs.DatasetTypeFilesystem, props)
+	println("TEST DatasetCreate(", TSTDatasetPath, ") (filesystem) ... ")
+	props := make(map[zfs.Prop]zfs.Property)
+	d, err := zfs.DatasetCreate(TSTDatasetPath, zfs.DatasetTypeFilesystem, props)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	d.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 
 	strSize := "536870912" // 512M
 
-	println("TEST DatasetCreate(", TST_VOLUME_PATH, ") (volume) ... ")
-	props[zfs.ZFSPropVolsize] = zfs.Property{Value: strSize}
+	println("TEST DatasetCreate(", TSTVolumePath, ") (volume) ... ")
+	props[zfs.DatasetPropVolsize] = zfs.Property{Value: strSize}
 	// In addition I explicitly choose some more properties to be set.
-	props[zfs.ZFSPropVolblocksize] = zfs.Property{Value: "4096"}
-	props[zfs.ZFSPropReservation] = zfs.Property{Value: strSize}
-	d, err = zfs.DatasetCreate(TST_VOLUME_PATH, zfs.DatasetTypeVolume, props)
+	props[zfs.DatasetPropVolblocksize] = zfs.Property{Value: "4096"}
+	props[zfs.DatasetPropReservation] = zfs.Property{Value: strSize}
+	d, err = zfs.DatasetCreate(TSTVolumePath, zfs.DatasetTypeVolume, props)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	d.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zfsTestDatasetOpen(t *testing.T) {
-	println("TEST DatasetOpen(", TST_DATASET_PATH, ") ... ")
-	d, err := zfs.DatasetOpen(TST_DATASET_PATH)
+	println("TEST DatasetOpen(", TSTDatasetPath, ") ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPath)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	d.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zfsTestDatasetOpenAll(t *testing.T) {
@@ -90,24 +91,24 @@ func zfsTestDatasetOpenAll(t *testing.T) {
 		return
 	}
 	zfs.DatasetCloseAll(ds)
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zfsTestDatasetSnapshot(t *testing.T) {
-	println("TEST DatasetSnapshot(", TST_DATASET_PATH, ", true, ...) ... ")
-	props := make(map[zfs.ZFSProp]zfs.Property)
-	d, err := zfs.DatasetSnapshot(TST_DATASET_PATH_SNAP, true, props)
+	println("TEST DatasetSnapshot(", TSTDatasetPath, ", true, ...) ... ")
+	props := make(map[zfs.Prop]zfs.Property)
+	d, err := zfs.DatasetSnapshot(TSTDatasetPathSnap, true, props)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 	defer d.Close()
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 func zfsTestDatasetDestroy(t *testing.T) {
-	println("TEST DATASET Destroy( ", TST_DATASET_PATH, " ) ... ")
-	d, err := zfs.DatasetOpen(TST_DATASET_PATH)
+	println("TEST DATASET Destroy( ", TSTDatasetPath, " ) ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPath)
 	if err != nil {
 		t.Error(err)
 		return
@@ -117,7 +118,7 @@ func zfsTestDatasetDestroy(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	println("PASS\n")
+	print("PASS\n\n")
 }
 
 /* ------------------------------------------------------------------------- */
@@ -128,7 +129,7 @@ func ExampleDatasetCreate() {
 	// Create map to represent ZFS dataset properties. This is equivalent to
 	// list of properties you can get from ZFS CLI tool, and some more
 	// internally used by libzfs.
-	props := make(map[zfs.ZFSProp]zfs.Property)
+	props := make(map[zfs.Prop]zfs.Property)
 
 	// I choose to create (block) volume 1GiB in size. Size is just ZFS dataset
 	// property and this is done as map of strings. So, You have to either
@@ -136,10 +137,10 @@ func ExampleDatasetCreate() {
 	// similar to convert in to string (base 10) from numeric type.
 	strSize := "1073741824"
 
-	props[zfs.ZFSPropVolsize] = zfs.Property{Value: strSize}
+	props[zfs.DatasetPropVolsize] = zfs.Property{Value: strSize}
 	// In addition I explicitly choose some more properties to be set.
-	props[zfs.ZFSPropVolblocksize] = zfs.Property{Value: "4096"}
-	props[zfs.ZFSPropReservation] = zfs.Property{Value: strSize}
+	props[zfs.DatasetPropVolblocksize] = zfs.Property{Value: "4096"}
+	props[zfs.DatasetPropReservation] = zfs.Property{Value: strSize}
 
 	// Lets create desired volume
 	d, err := zfs.DatasetCreate("TESTPOOL/VOLUME1", zfs.DatasetTypeVolume, props)
@@ -161,10 +162,11 @@ func ExampleDatasetOpen() {
 	}
 	defer d.Close()
 	var p zfs.Property
-	if p, err = d.GetProperty(zfs.ZFSPropAvailable); err != nil {
+	if p, err = d.GetProperty(zfs.DatasetPropAvailable); err != nil {
 		panic(err.Error())
 	}
-	println(zfs.DatasetPropertyToName(zfs.ZFSPropAvailable), " = ", p.Value)
+	println(zfs.DatasetPropertyToName(zfs.DatasetPropAvailable), " = ",
+		p.Value)
 }
 
 func ExampleDatasetOpenAll() {
@@ -180,7 +182,7 @@ func ExampleDatasetOpenAll() {
 		if err != nil {
 			panic(err.Error())
 		}
-		p, err := d.GetProperty(zfs.ZFSPropType)
+		p, err := d.GetProperty(zfs.DatasetPropType)
 		if err != nil {
 			panic(err.Error())
 		}

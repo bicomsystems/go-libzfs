@@ -46,10 +46,10 @@ props := make(map[ZFSProp]Property)
 // similar to convert in to string (base 10) from numeric type.
 strSize := "1073741824"
 
-props[ZFSPropVolsize] = Property{Value: strSize}
+props[DatasetPropVolsize] = Property{Value: strSize}
 // In addition I explicitly choose some more properties to be set.
-props[ZFSPropVolblocksize] = Property{Value: "4096"}
-props[ZFSPropReservation] = Property{Value: strSize}
+props[DatasetPropVolblocksize] = Property{Value: "4096"}
+props[DatasetPropReservation] = Property{Value: strSize}
 
 // Lets create desired volume
 d, err := DatasetCreate("TESTPOOL/VOLUME1", DatasetTypeVolume, props)
