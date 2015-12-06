@@ -20,6 +20,14 @@ const (
 // PoolProperties type is map of pool properties name -> value
 type PoolProperties map[Prop]string
 
+// VDevTree ZFS virtual device tree
+type VDevTree struct {
+	Type    VDevType
+	Devices []VDevTree // groups other devices (e.g. mirror)
+	Parity  uint
+	Path    string
+}
+
 // Pool object represents handler to single ZFS pool
 //
 /* Pool.Properties map[string]Property
@@ -48,12 +56,13 @@ func PoolOpen(name string) (pool Pool, err error) {
 	return
 }
 
-// PoolImport given a list of directories to search, find and import pool with matching
-// name stored on disk.
-func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
+func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
+	err error) {
+	var config *C.nvlist_t
+	var cname *C.char
+	config = nil
 	errPoolList := errors.New("Failed to list pools")
 	var elem *C.nvpair_t
-	var config *C.nvlist_t
 	numofp := len(searchpaths)
 	cpaths := C.alloc_strings(C.int(numofp))
 	for i, path := range searchpaths {
@@ -65,38 +74,86 @@ func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
 
 	elem = C.nvlist_next_nvpair(pools, elem)
 	for ; elem != nil; elem = C.nvlist_next_nvpair(pools, elem) {
-		var cname *C.char
+		var cq *C.char
 		var tconfig *C.nvlist_t
 		retcode := C.nvpair_value_nvlist(elem, &tconfig)
 		if retcode != 0 {
 			err = errPoolList
 			return
 		}
-		retcode = C.nvlist_lookup_string(tconfig,
-			C.CString(C.ZPOOL_CONFIG_POOL_NAME), &cname)
-		if retcode != 0 {
-			err = errPoolList
-			return
-		}
-		oname := C.GoString(cname)
-		if name == oname {
-			config = tconfig
-			break
+		if guid {
+			var iguid C.uint64_t
+			if retcode = C.nvlist_lookup_uint64(tconfig,
+				C.CString(C.ZPOOL_CONFIG_POOL_GUID), &iguid); retcode != 0 {
+				err = errPoolList
+				return
+			}
+			sguid := fmt.Sprint(iguid)
+			if q == sguid {
+				config = tconfig
+				break
+			}
+		} else {
+			if retcode = C.nvlist_lookup_string(tconfig,
+				C.CString(C.ZPOOL_CONFIG_POOL_NAME), &cq); retcode != 0 {
+				err = errPoolList
+				return
+			}
+			cname = cq
+			name = C.GoString(cq)
+			if q == name {
+				config = tconfig
+				break
+			}
 		}
 	}
 	if config == nil {
-		err = errors.New("No pools to import found with name " + name)
+		err = fmt.Errorf("No pool found %s", q)
 		return
 	}
-
-	retcode := C.zpool_import(libzfsHandle, config, C.CString(name), nil)
-	if retcode != 0 {
+	if guid {
+		// We need to get name so we can open pool by name
+		if retcode := C.nvlist_lookup_string(config,
+			C.CString(C.ZPOOL_CONFIG_POOL_NAME), &cname); retcode != 0 {
+			err = errPoolList
+			return
+		}
+		name = C.GoString(cname)
+	}
+	if retcode := C.zpool_import(libzfsHandle, config, cname,
+		nil); retcode != 0 {
 		err = LastError()
+		return
+	}
+	return
+}
+
+// PoolImport given a list of directories to search, find and import pool with matching
+// name stored on disk.
+func PoolImport(name string, searchpaths []string) (pool Pool, err error) {
+	_, err = poolSearchImport(name, searchpaths, false)
+	if err != nil {
 		return
 	}
 	pool, err = PoolOpen(name)
 	return
 }
+
+// PoolImportByGUID given a list of directories to search, find and import pool
+// with matching GUID stored on disk.
+func PoolImportByGUID(guid string, searchpaths []string) (pool Pool, err error) {
+	var name string
+	name, err = poolSearchImport(guid, searchpaths, true)
+	if err != nil {
+		return
+	}
+	pool, err = PoolOpen(name)
+	return
+}
+
+// func PoolList(paths []string, cache string) (pools []Pool, err error) {
+//
+// }
 
 // PoolOpenAll open all active ZFS pools on current system.
 // Returns array of Pool handlers, each have to be closed after not needed
@@ -164,9 +221,17 @@ func (pool *Pool) ReloadProperties() (err error) {
 
 	// read features
 	pool.Features = map[string]string{
-		"async_destroy": "disabled",
-		"empty_bpobj":   "disabled",
-		"lz4_compress":  "disabled"}
+		"async_destroy":      "disabled",
+		"empty_bpobj":        "disabled",
+		"lz4_compress":       "disabled",
+		"spacemap_histogram": "disabled",
+		"enabled_txg":        "disabled",
+		"hole_birth":         "disabled",
+		"extensible_dataset": "disabled",
+		"embedded_data":      "disabled",
+		"bookmarks":          "disabled",
+		"filesystem_limits":  "disabled",
+		"large_blocks":       "disabled"}
 	for name := range pool.Features {
 		pool.GetFeature(name)
 	}
@@ -265,15 +330,7 @@ func (pool *Pool) State() (state PoolState, err error) {
 	return
 }
 
-// VDevSpec ZFS virtual device specification
-type VDevSpec struct {
-	Type    VDevType
-	Devices []VDevSpec // groups other devices (e.g. mirror)
-	Parity  uint
-	Path    string
-}
-
-func (vdev *VDevSpec) isGrouping() (grouping bool, mindevs, maxdevs int) {
+func (vdev *VDevTree) isGrouping() (grouping bool, mindevs, maxdevs int) {
 	maxdevs = int(^uint(0) >> 1)
 	if vdev.Type == VDevTypeRaidz {
 		grouping = true
@@ -295,7 +352,7 @@ func (vdev *VDevSpec) isGrouping() (grouping bool, mindevs, maxdevs int) {
 	return
 }
 
-func (vdev *VDevSpec) isLog() (r C.uint64_t) {
+func (vdev *VDevTree) isLog() (r C.uint64_t) {
 	r = 0
 	if vdev.Type == VDevTypeLog {
 		r = 1
@@ -335,7 +392,7 @@ func toCDatasetProperties(props DatasetProperties) (cprops *C.nvlist_t) {
 	return
 }
 
-func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
+func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 	props PoolProperties) (err error) {
 	count := len(vdevs)
 	if count == 0 {
@@ -396,7 +453,7 @@ func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
 					return
 				}
 			}
-			if err = buildVDevSpec(child, vdev.Type, vdev.Devices,
+			if err = buildVDevTree(child, vdev.Type, vdev.Devices,
 				props); err != nil {
 				return
 			}
@@ -470,7 +527,7 @@ func buildVDevSpec(root *C.nvlist_t, rtype VDevType, vdevs []VDevSpec,
 }
 
 // PoolCreate create ZFS pool per specs, features and properties of pool and root dataset
-func PoolCreate(name string, vdevs []VDevSpec, features map[string]string,
+func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	props PoolProperties, fsprops DatasetProperties) (pool Pool, err error) {
 	// create root vdev nvroot
 	var nvroot *C.nvlist_t
@@ -486,7 +543,7 @@ func PoolCreate(name string, vdevs []VDevSpec, features map[string]string,
 	defer C.nvlist_free(nvroot)
 
 	// Now we need to build specs (vdev hierarchy)
-	if err = buildVDevSpec(nvroot, VDevTypeRoot, vdevs, props); err != nil {
+	if err = buildVDevTree(nvroot, VDevTypeRoot, vdevs, props); err != nil {
 		return
 	}
 

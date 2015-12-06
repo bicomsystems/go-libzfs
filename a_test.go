@@ -12,7 +12,7 @@ func Test(t *testing.T) {
 	zpoolTestExport(t)
 	zpoolTestImport(t)
 	zpoolTestExportForce(t)
-	zpoolTestImport(t)
+	zpoolTestImportByGUID(t)
 	zpoolTestPoolProp(t)
 	zpoolTestPoolStatusAndState(t)
 	zpoolTestPoolOpenAll(t)

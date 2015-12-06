@@ -13,6 +13,7 @@ import (
 // HELPERS:
 
 var TSTPoolName = "TESTPOOL"
+var TSTPoolGUID string
 
 func CreateTmpSparse(prefix string, size int64) (path string, err error) {
 	sf, err := ioutil.TempFile("/tmp", prefix)
@@ -83,16 +84,16 @@ func zpoolTestPoolCreate(t *testing.T) {
 
 	disks := [2]string{s1path, s2path}
 
-	var vdevs, mdevs, sdevs []zfs.VDevSpec
+	var vdevs, mdevs, sdevs []zfs.VDevTree
 	for _, d := range disks {
 		mdevs = append(mdevs,
-			zfs.VDevSpec{Type: zfs.VDevTypeFile, Path: d})
+			zfs.VDevTree{Type: zfs.VDevTypeFile, Path: d})
 	}
-	sdevs = []zfs.VDevSpec{
+	sdevs = []zfs.VDevTree{
 		{Type: zfs.VDevTypeFile, Path: s3path}}
-	vdevs = []zfs.VDevSpec{
-		zfs.VDevSpec{Type: zfs.VDevTypeMirror, Devices: mdevs},
-		zfs.VDevSpec{Type: zfs.VDevTypeSpare, Devices: sdevs},
+	vdevs = []zfs.VDevTree{
+		zfs.VDevTree{Type: zfs.VDevTypeMirror, Devices: mdevs},
+		zfs.VDevTree{Type: zfs.VDevTypeSpare, Devices: sdevs},
 	}
 
 	props := make(map[zfs.Prop]string)
@@ -113,6 +114,9 @@ func zpoolTestPoolCreate(t *testing.T) {
 		return
 	}
 	defer pool.Close()
+
+	pguid, _ := pool.GetProperty(zfs.PoolPropGUID)
+	TSTPoolGUID = pguid.Value
 
 	print("PASS\n\n")
 }
@@ -201,6 +205,17 @@ func zpoolTestExportForce(t *testing.T) {
 func zpoolTestImport(t *testing.T) {
 	println("TEST POOL Import( ", TSTPoolName, " ) ... ")
 	p, err := zfs.PoolImport(TSTPoolName, []string{"/tmp"})
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer p.Close()
+	print("PASS\n\n")
+}
+
+func zpoolTestImportByGUID(t *testing.T) {
+	println("TEST POOL ImportByGUID( ", TSTPoolGUID, " ) ... ")
+	p, err := zfs.PoolImportByGUID(TSTPoolGUID, []string{"/tmp"})
 	if err != nil {
 		t.Error(err)
 		return
@@ -335,22 +350,22 @@ func ExamplePoolOpenAll() {
 func ExamplePoolCreate() {
 	disks := [2]string{"/dev/disk/by-id/ATA-123", "/dev/disk/by-id/ATA-456"}
 
-	var vdevs, mdevs, sdevs []zfs.VDevSpec
+	var vdevs, mdevs, sdevs []zfs.VDevTree
 
 	// build mirror devices specs
 	for _, d := range disks {
 		mdevs = append(mdevs,
-			zfs.VDevSpec{Type: zfs.VDevTypeDisk, Path: d})
+			zfs.VDevTree{Type: zfs.VDevTypeDisk, Path: d})
 	}
 
 	// spare device specs
-	sdevs = []zfs.VDevSpec{
+	sdevs = []zfs.VDevTree{
 		{Type: zfs.VDevTypeDisk, Path: "/dev/disk/by-id/ATA-789"}}
 
 	// pool specs
-	vdevs = []zfs.VDevSpec{
-		zfs.VDevSpec{Type: zfs.VDevTypeMirror, Devices: mdevs},
-		zfs.VDevSpec{Type: zfs.VDevTypeSpare, Devices: sdevs},
+	vdevs = []zfs.VDevTree{
+		zfs.VDevTree{Type: zfs.VDevTypeMirror, Devices: mdevs},
+		zfs.VDevTree{Type: zfs.VDevTypeSpare, Devices: sdevs},
 	}
 
 	// pool properties
