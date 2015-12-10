@@ -50,9 +50,16 @@ add_prop_list(const char *propname, char *propval, nvlist_t **props,
 nvlist_t** nvlist_alloc_array(int count);
 void nvlist_array_set(nvlist_t** a, int i, nvlist_t *item);
 void nvlist_free_array(nvlist_t **a);
+nvlist_t *nvlist_array_at(nvlist_t **a, uint_t i);
 
 
 void free_cstring(char *str);
+
+int nvlist_lookup_uint64_array_vds(nvlist_t *nv, const char *p,
+	vdev_stat_t **vds, uint_t *c);
+
+int nvlist_lookup_uint64_array_ps(nvlist_t *nv, const char *p,
+	pool_scan_stat_t **vds, uint_t *c);
 
 #endif
 /* SERVERWARE_ZPOOL_H */

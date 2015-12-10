@@ -1,7 +1,7 @@
 /* C wrappers around some zfs calls and C in general that should simplify
  * using libzfs from go language, and make go code shorter and more readable.
  */
- 
+
 #include <libzfs.h>
 #include <memory.h>
 #include <string.h>
@@ -112,17 +112,17 @@ void zprop_source_tostr(char *dst, zprop_source_t source) {
 		break;
 	default:
 		strcpy(dst, "default");
-		break; 
+		break;
 	}
 }
 
 
 int read_zpool_property(zpool_handle_t *zh, property_list_t *list, int prop) {
-	
+
 	int r = 0;
 	zprop_source_t source;
 
-	r = zpool_get_prop(zh, prop, 
+	r = zpool_get_prop(zh, prop,
 		list->value, INT_MAX_VALUE, &source);
 	if (r == 0) {
 		// strcpy(list->name, zpool_prop_to_name(prop));
@@ -366,6 +366,16 @@ add_prop_list(const char *propname, char *propval, nvlist_t **props,
 	return (0);
 }
 
+int nvlist_lookup_uint64_array_vds(nvlist_t *nv, const char *p,
+	vdev_stat_t **vds, uint_t *c) {
+		return nvlist_lookup_uint64_array(nv, p, (uint64_t**)vds, c);
+}
+
+int nvlist_lookup_uint64_array_ps(nvlist_t *nv, const char *p,
+	pool_scan_stat_t **vds, uint_t *c) {
+		return nvlist_lookup_uint64_array(nv, p, (uint64_t**)vds, c);
+}
+
 nvlist_t** nvlist_alloc_array(int count) {
 	return malloc(count*sizeof(nvlist_t*));
 }
@@ -380,4 +390,8 @@ void nvlist_free_array(nvlist_t **a) {
 
 void free_cstring(char *str) {
 	free(str);
+}
+
+nvlist_t *nvlist_array_at(nvlist_t **a, uint_t i) {
+	return a[i];
 }

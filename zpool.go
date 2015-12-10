@@ -20,12 +20,94 @@ const (
 // PoolProperties type is map of pool properties name -> value
 type PoolProperties map[Prop]string
 
+/*
+ * ZIO types.  Needed to interpret vdev statistics below.
+ */
+const (
+	ZIOTypeNull = iota
+	ZIOTypeRead
+	ZIOTypeWrite
+	ZIOTypeFree
+	ZIOTypeClaim
+	ZIOTypeIOCtl
+	ZIOTypes
+)
+
+// Scan states
+const (
+	DSSNone      = iota // No scan
+	DSSScanning         // Scanning
+	DSSFinished         // Scan finished
+	DSSCanceled         // Scan canceled
+	DSSNumStates        // Total number of scan states
+)
+
+// Scan functions
+const (
+	PoolScanNone     = iota // No scan function
+	PoolScanScrub           // Pools is checked against errors
+	PoolScanResilver        // Pool is resilvering
+	PoolScanFuncs           // Number of scan functions
+)
+
+// VDevStat - Vdev statistics.  Note: all fields should be 64-bit because this
+// is passed between kernel and userland as an nvlist uint64 array.
+type VDevStat struct {
+	Timestamp      time.Duration    /* time since vdev load	(nanoseconds)*/
+	State          VDevState        /* vdev state		*/
+	Aux            VDevAux          /* see vdev_aux_t	*/
+	Alloc          uint64           /* space allocated	*/
+	Space          uint64           /* total capacity	*/
+	DSpace         uint64           /* deflated capacity	*/
+	RSize          uint64           /* replaceable dev size */
+	ESize          uint64           /* expandable dev size */
+	Ops            [ZIOTypes]uint64 /* operation count	*/
+	Bytes          [ZIOTypes]uint64 /* bytes read/written	*/
+	ReadErrors     uint64           /* read errors		*/
+	WriteErrors    uint64           /* write errors		*/
+	ChecksumErrors uint64           /* checksum errors	*/
+	SelfHealed     uint64           /* self-healed bytes	*/
+	ScanRemoving   uint64           /* removing?	*/
+	ScanProcessed  uint64           /* scan processed bytes	*/
+	Fragmentation  uint64           /* device fragmentation */
+}
+
+// PoolScanStat - Pool scan statistics
+type PoolScanStat struct {
+	// Values stored on disk
+	Func      uint64 // Current scan function e.g. none, scrub ...
+	State     uint64 // Current scan state e.g. scanning, finished ...
+	StartTime uint64 // Scan start time
+	EndTime   uint64 // Scan end time
+	ToExamine uint64 // Total bytes to scan
+	Examined  uint64 // Total bytes scaned
+	ToProcess uint64 // Total bytes to processed
+	Processed uint64 // Total bytes processed
+	Errors    uint64 // Scan errors
+	// Values not stored on disk
+	PassExam  uint64 // Examined bytes per scan pass
+	PassStart uint64 // Start time of scan pass
+}
+
 // VDevTree ZFS virtual device tree
 type VDevTree struct {
-	Type    VDevType
-	Devices []VDevTree // groups other devices (e.g. mirror)
-	Parity  uint
-	Path    string
+	Type     VDevType
+	Devices  []VDevTree // groups other devices (e.g. mirror)
+	Parity   uint
+	Path     string
+	Name     string
+	Stat     VDevStat
+	ScanStat PoolScanStat
+}
+
+// ExportedPool is type representing ZFS pool available for import
+type ExportedPool struct {
+	VDevs   VDevTree
+	Name    string
+	Comment string
+	GUID    uint64
+	State   PoolState
+	Status  PoolStatus
 }
 
 // Pool object represents handler to single ZFS pool
@@ -53,6 +135,164 @@ func PoolOpen(name string) (pool Pool, err error) {
 		return
 	}
 	err = LastError()
+	return
+}
+
+func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
+	var dtype *C.char
+	var c, children C.uint_t
+	var notpresent C.uint64_t
+	var vs *C.vdev_stat_t
+	var ps *C.pool_scan_stat_t
+	var child **C.nvlist_t
+	var vdev VDevTree
+	if 0 != C.nvlist_lookup_string(nv, C.CString(C.ZPOOL_CONFIG_TYPE), &dtype) {
+		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_TYPE)
+		return
+	}
+	vdevs.Name = name
+	vdevs.Type = VDevType(C.GoString(dtype))
+	if vdevs.Type == VDevTypeMissing || vdevs.Type == VDevTypeHole {
+		return
+	}
+
+	// Fetch vdev state
+	if 0 != C.nvlist_lookup_uint64_array_vds(nv, C.CString(C.ZPOOL_CONFIG_VDEV_STATS),
+		&vs, &c) {
+		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_STATS)
+		return
+	}
+	vdevs.Stat.Timestamp = time.Duration(vs.vs_timestamp)
+	vdevs.Stat.State = VDevState(vs.vs_state)
+	vdevs.Stat.Aux = VDevAux(vs.vs_aux)
+	vdevs.Stat.Alloc = uint64(vs.vs_alloc)
+	vdevs.Stat.Space = uint64(vs.vs_space)
+	vdevs.Stat.DSpace = uint64(vs.vs_dspace)
+	vdevs.Stat.RSize = uint64(vs.vs_rsize)
+	vdevs.Stat.ESize = uint64(vs.vs_esize)
+	for z := 0; z < ZIOTypes; z++ {
+		vdev.Stat.Ops[z] = uint64(vs.vs_ops[z])
+		vdev.Stat.Bytes[z] = uint64(vs.vs_bytes[z])
+	}
+	vdevs.Stat.ReadErrors = uint64(vs.vs_read_errors)
+	vdevs.Stat.WriteErrors = uint64(vs.vs_write_errors)
+	vdevs.Stat.ChecksumErrors = uint64(vs.vs_checksum_errors)
+	vdevs.Stat.SelfHealed = uint64(vs.vs_self_healed)
+	vdevs.Stat.ScanRemoving = uint64(vs.vs_scan_removing)
+	vdevs.Stat.ScanProcessed = uint64(vs.vs_scan_processed)
+	vdevs.Stat.Fragmentation = uint64(vs.vs_fragmentation)
+
+	// Fetch vdev scan stats
+	if 0 == C.nvlist_lookup_uint64_array_ps(nv, C.CString(C.ZPOOL_CONFIG_SCAN_STATS),
+		&ps, &c) {
+		vdevs.ScanStat.Func = uint64(ps.pss_func)
+		vdevs.ScanStat.State = uint64(ps.pss_state)
+		vdevs.ScanStat.StartTime = uint64(ps.pss_start_time)
+		vdevs.ScanStat.EndTime = uint64(ps.pss_end_time)
+		vdevs.ScanStat.ToExamine = uint64(ps.pss_to_examine)
+		vdevs.ScanStat.Examined = uint64(ps.pss_examined)
+		vdevs.ScanStat.ToProcess = uint64(ps.pss_to_process)
+		vdevs.ScanStat.Processed = uint64(ps.pss_processed)
+		vdevs.ScanStat.Errors = uint64(ps.pss_errors)
+		vdevs.ScanStat.PassExam = uint64(ps.pss_pass_exam)
+		vdevs.ScanStat.PassStart = uint64(ps.pss_pass_start)
+	}
+
+	// Fetch the children
+	if C.nvlist_lookup_nvlist_array(nv, C.CString(C.ZPOOL_CONFIG_CHILDREN),
+		&child, &children) != 0 {
+		return
+	}
+	if children > 0 {
+		vdevs.Devices = make([]VDevTree, 0, children)
+	}
+	if C.nvlist_lookup_uint64(nv, C.CString(C.ZPOOL_CONFIG_NOT_PRESENT),
+		&notpresent) == 0 {
+		var path *C.char
+		if 0 != C.nvlist_lookup_string(nv, C.CString(C.ZPOOL_CONFIG_PATH), &path) {
+			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_PATH)
+			return
+		}
+		vdevs.Path = C.GoString(path)
+	}
+	for c = 0; c < children; c++ {
+		var islog = C.uint64_t(C.B_FALSE)
+
+		C.nvlist_lookup_uint64(C.nvlist_array_at(child, c),
+			C.CString(C.ZPOOL_CONFIG_IS_LOG), &islog)
+		if islog != C.B_FALSE {
+			continue
+		}
+		vname := C.zpool_vdev_name(libzfsHandle, nil, C.nvlist_array_at(child, c),
+			C.B_TRUE)
+		vdev, err = poolGetConfig(C.GoString(vname),
+			C.nvlist_array_at(child, c))
+		C.free_cstring(vname)
+		if err != nil {
+			return
+		}
+		vdevs.Devices = append(vdevs.Devices, vdev)
+	}
+	return
+}
+
+// PoolImportSearch - Search pools available to import but not imported.
+// Returns array of found pools.
+func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
+	var config, nvroot *C.nvlist_t
+	var cname, msgid, comment *C.char
+	var poolState, guid C.uint64_t
+	var reason C.zpool_status_t
+	var errata C.zpool_errata_t
+	config = nil
+	var elem *C.nvpair_t
+	numofp := len(searchpaths)
+	cpaths := C.alloc_strings(C.int(numofp))
+	for i, path := range searchpaths {
+		C.strings_setat(cpaths, C.int(i), C.CString(path))
+	}
+
+	pools := C.zpool_find_import(libzfsHandle, C.int(numofp), cpaths)
+	defer C.nvlist_free(pools)
+	elem = C.nvlist_next_nvpair(pools, elem)
+	epools = make([]ExportedPool, 0, 1)
+	for ; elem != nil; elem = C.nvlist_next_nvpair(pools, elem) {
+		ep := ExportedPool{}
+		if C.nvpair_value_nvlist(elem, &config) != 0 {
+			err = LastError()
+			return
+		}
+		if C.nvlist_lookup_uint64(config, C.CString(C.ZPOOL_CONFIG_POOL_STATE),
+			&poolState) != 0 {
+			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_STATE)
+			return
+		}
+		ep.State = PoolState(poolState)
+		if C.nvlist_lookup_string(config, C.CString(C.ZPOOL_CONFIG_POOL_NAME), &cname) != 0 {
+			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_NAME)
+			return
+		}
+		ep.Name = C.GoString(cname)
+		if C.nvlist_lookup_uint64(config, C.CString(C.ZPOOL_CONFIG_POOL_GUID), &guid) != 0 {
+			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_GUID)
+			return
+		}
+		ep.GUID = uint64(guid)
+		reason = C.zpool_import_status(config, &msgid, &errata)
+		ep.Status = PoolStatus(reason)
+
+		if C.nvlist_lookup_string(config, C.CString(C.ZPOOL_CONFIG_COMMENT), &comment) == 0 {
+			ep.Comment = C.GoString(comment)
+		}
+
+		if C.nvlist_lookup_nvlist(config, C.CString(C.ZPOOL_CONFIG_VDEV_TREE),
+			&nvroot) != 0 {
+			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_TREE)
+			return
+		}
+		ep.VDevs, err = poolGetConfig(ep.Name, nvroot)
+		epools = append(epools, ep)
+	}
 	return
 }
 
@@ -583,23 +823,8 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 		return
 	}
 
-	// It can happen that pool is not immediately available,
-	// we know we just created it with success so lets wait and retry
-	// but only in case EZFS_NOENT error
-	retr := 0
-	for pool, err = PoolOpen(name); err != nil && retr < 3; retr++ {
-		errno := C.libzfs_errno(libzfsHandle)
-		if errno == ENoent {
-			time.Sleep(500 * time.Millisecond)
-		} else {
-			err = errors.New(err.Error() + " (PoolOpen)")
-			return
-		}
-		pool, err = PoolOpen(name)
-	}
-	if err != nil {
-		err = errors.New(err.Error() + " (PoolOpen)")
-	}
+	// Open created pool and return handle
+	pool, err = PoolOpen(name)
 	return
 }
 
@@ -653,4 +878,70 @@ func (pool *Pool) ExportForce(log string) (err error) {
 		err = LastError()
 	}
 	return
+}
+
+// VDevTree - Fetch pool's current vdev tree configuration, state and stats
+func (pool *Pool) VDevTree() (vdevs VDevTree, err error) {
+	var nvroot *C.nvlist_t
+	var poolName string
+	config := C.zpool_get_config(pool.list.zph, nil)
+	if config == nil {
+		err = fmt.Errorf("Failed zpool_get_config")
+		return
+	}
+	if C.nvlist_lookup_nvlist(config, C.CString(C.ZPOOL_CONFIG_VDEV_TREE),
+		&nvroot) != 0 {
+		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_TREE)
+		return
+	}
+	if poolName, err = pool.Name(); err != nil {
+		return
+	}
+	return poolGetConfig(poolName, nvroot)
+}
+
+func (s PoolState) String() string {
+	switch s {
+	case PoolStateActive:
+		return "ACTIVE"
+	case PoolStateExported:
+		return "EXPORTED"
+	case PoolStateDestroyed:
+		return "DESTROYED"
+	case PoolStateSpare:
+		return "SPARE"
+	case PoolStateL2cache:
+		return "L2CACHE"
+	case PoolStateUninitialized:
+		return "UNINITIALIZED"
+	case PoolStateUnavail:
+		return "UNAVAILABLE"
+	case PoolStatePotentiallyActive:
+		return "POTENTIALLYACTIVE"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func (s VDevState) String() string {
+	switch s {
+	case VDevStateUnknown:
+		return "UNINITIALIZED"
+	case VDevStateClosed:
+		return "CLOSED"
+	case VDevStateOffline:
+		return "OFFLINE"
+	case VDevStateRemoved:
+		return "REMOVED"
+	case VDevStateCantOpen:
+		return "CANT_OPEN"
+	case VDevStateFaulted:
+		return "FAULTED"
+	case VDevStateDegraded:
+		return "DEGRADED"
+	case VDevStateHealthy:
+		return "ONLINE"
+	default:
+		return "UNKNOWN"
+	}
 }

@@ -9,7 +9,9 @@ import (
 
 func Test(t *testing.T) {
 	zpoolTestPoolCreate(t)
+	zpoolTestPoolVDevTree(t)
 	zpoolTestExport(t)
+	zpoolTestPoolImportSearch(t)
 	zpoolTestImport(t)
 	zpoolTestExportForce(t)
 	zpoolTestImportByGUID(t)

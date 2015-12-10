@@ -57,6 +57,12 @@ type PoolStatus int
 // PoolState type representing pool state
 type PoolState uint64
 
+// VDevState - vdev states tye
+type VDevState uint64
+
+// VDevAux - vdev aux states
+type VDevAux uint64
+
 // Property ZFS pool or dataset property value
 type Property struct {
 	Value  string
@@ -345,4 +351,38 @@ const (
 	EDiffdata                          /* bad zfs diff data */
 	EPoolreadonly                      /* pool is in read-only mode */
 	EUnknown
+)
+
+// vdev states are ordered from least to most healthy.
+// A vdev that's VDevStateCantOpen or below is considered unusable.
+const (
+	VDevStateUnknown  VDevState = iota // Uninitialized vdev
+	VDevStateClosed                    // Not currently open
+	VDevStateOffline                   // Not allowed to open
+	VDevStateRemoved                   // Explicitly removed from system
+	VDevStateCantOpen                  // Tried to open, but failed
+	VDevStateFaulted                   // External request to fault device
+	VDevStateDegraded                  // Replicated vdev with unhealthy kids
+	VDevStateHealthy                   // Presumed good
+)
+
+// vdev aux states.  When a vdev is in the VDevStateCantOpen state, the aux field
+// of the vdev stats structure uses these constants to distinguish why.
+const (
+	VDevAuxNone         VDevAux = iota // no error
+	VDevAuxOpenFailed                  // ldi_open_*() or vn_open() failed
+	VDevAuxCorruptData                 // bad label or disk contents
+	VDevAuxNoReplicas                  // insufficient number of replicas
+	VDevAuxBadGUIDSum                  // vdev guid sum doesn't match
+	VDevAuxTooSmall                    // vdev size is too small
+	VDevAuxBadLabel                    // the label is OK but invalid
+	VDevAuxVersionNewer                // on-disk version is too new
+	VDevAuxVersionOlder                // on-disk version is too old
+	VDevAuxUnsupFeat                   // unsupported features
+	VDevAuxSpared                      // hot spare used in another pool
+	VDevAuxErrExceeded                 // too many errors
+	VDevAuxIOFailure                   // experienced I/O failure
+	VDevAuxBadLog                      // cannot read log chain(s)
+	VDevAuxExternal                    // external diagnosis
+	VDevAuxSplitPool                   // vdev was split off into another pool
 )

@@ -224,6 +224,36 @@ func zpoolTestImportByGUID(t *testing.T) {
 	print("PASS\n\n")
 }
 
+func printVDevTree(vt zfs.VDevTree, pref string) {
+	first := pref + vt.Name
+	fmt.Printf("%-30s | %-10s | %-10s | %s\n", first, vt.Type,
+		vt.Stat.State.String(), vt.Path)
+	for _, v := range vt.Devices {
+		printVDevTree(v, "  "+pref)
+	}
+}
+
+func zpoolTestPoolImportSearch(t *testing.T) {
+	println("TEST PoolImportSearch")
+	pools, err := zfs.PoolImportSearch([]string{"/tmp"})
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	for _, p := range pools {
+		println()
+		println("---------------------------------------------------------------")
+		println("pool: ", p.Name)
+		println("guid: ", p.GUID)
+		println("state: ", p.State.String())
+		fmt.Printf("%-30s | %-10s | %-10s | %s\n", "NAME", "TYPE", "STATE", "PATH")
+		println("---------------------------------------------------------------")
+		printVDevTree(p.VDevs, "")
+
+	}
+	print("PASS\n\n")
+}
+
 func zpoolTestPoolProp(t *testing.T) {
 	println("TEST PoolProp on ", TSTPoolName, " ... ")
 	if pool, err := zfs.PoolOpen(TSTPoolName); err == nil {
@@ -237,11 +267,19 @@ func zpoolTestPoolProp(t *testing.T) {
 		}
 
 		// Test fetching property
-		_, err := pool.GetProperty(zfs.PoolPropHealth)
+		propHealth, err := pool.GetProperty(zfs.PoolPropHealth)
 		if err != nil {
 			t.Error(err)
 			return
 		}
+		println("Pool property health: ", propHealth.Value)
+
+		propGUID, err := pool.GetProperty(zfs.PoolPropGUID)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		println("Pool property GUID: ", propGUID.Value)
 
 		// this test pool should not be bootable
 		prop, err := pool.GetProperty(zfs.PoolPropBootfs)
@@ -287,6 +325,26 @@ func zpoolTestPoolStatusAndState(t *testing.T) {
 	}
 	println("POOL", TSTPoolName, "state:", zfs.PoolStateToName(pstate))
 
+	print("PASS\n\n")
+}
+
+func zpoolTestPoolVDevTree(t *testing.T) {
+	var vdevs zfs.VDevTree
+	println("TEST pool VDevTree ( ", TSTPoolName, " ) ... ")
+	pool, err := zfs.PoolOpen(TSTPoolName)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	defer pool.Close()
+	vdevs, err = pool.VDevTree()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	fmt.Printf("%-30s | %-10s | %-10s | %s\n", "NAME", "TYPE", "STATE", "PATH")
+	println("---------------------------------------------------------------")
+	printVDevTree(vdevs, "")
 	print("PASS\n\n")
 }
 
