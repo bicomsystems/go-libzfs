@@ -145,7 +145,6 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 	var vs *C.vdev_stat_t
 	var ps *C.pool_scan_stat_t
 	var child **C.nvlist_t
-	var vdev VDevTree
 	if 0 != C.nvlist_lookup_string(nv, C.CString(C.ZPOOL_CONFIG_TYPE), &dtype) {
 		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_TYPE)
 		return
@@ -171,8 +170,8 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 	vdevs.Stat.RSize = uint64(vs.vs_rsize)
 	vdevs.Stat.ESize = uint64(vs.vs_esize)
 	for z := 0; z < ZIOTypes; z++ {
-		vdev.Stat.Ops[z] = uint64(vs.vs_ops[z])
-		vdev.Stat.Bytes[z] = uint64(vs.vs_bytes[z])
+		vdevs.Stat.Ops[z] = uint64(vs.vs_ops[z])
+		vdevs.Stat.Bytes[z] = uint64(vs.vs_bytes[z])
 	}
 	vdevs.Stat.ReadErrors = uint64(vs.vs_read_errors)
 	vdevs.Stat.WriteErrors = uint64(vs.vs_write_errors)
@@ -225,6 +224,8 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 		}
 		vname := C.zpool_vdev_name(libzfsHandle, nil, C.nvlist_array_at(child, c),
 			C.B_TRUE)
+
+		var vdev VDevTree
 		vdev, err = poolGetConfig(C.GoString(vname),
 			C.nvlist_array_at(child, c))
 		C.free_cstring(vname)
