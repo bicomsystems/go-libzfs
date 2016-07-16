@@ -443,6 +443,18 @@ func PoolStateToName(state PoolState) (name string) {
 	return
 }
 
+// Refresh the pool's vdev statistics, e.g. bytes read/written.
+func (pool *Pool) RefreshStats() (err error) {
+	var missing C.boolean_t
+	if 0 != C.zpool_refresh_stats(pool.list.zph, &missing) {
+		return errors.New("error refreshing stats")
+	}
+	if missing == C.B_TRUE {
+		return errors.New("pool has gone missing")
+	}
+	return nil
+}
+
 // ReloadProperties re-read ZFS pool properties and features, refresh
 // Pool.Properties and Pool.Features map
 func (pool *Pool) ReloadProperties() (err error) {
