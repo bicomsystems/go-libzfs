@@ -87,7 +87,7 @@ int clear_last_error(libzfs_handle_t *hdl) {
 	return 0;
 }
 
-char** alloc_strings(int size) {
+char** alloc_cstrings(int size) {
 	return malloc(size*sizeof(char*));
 }
 

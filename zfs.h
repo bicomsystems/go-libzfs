@@ -24,7 +24,7 @@ int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop);
 
 int clear_last_error(libzfs_handle_t *libzfs);
 
-char** alloc_strings(int size);
+char** alloc_cstrings(int size);
 void strings_setat(char **a, int at, char *v);
 
 #endif

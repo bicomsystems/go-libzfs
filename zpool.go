@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 	"time"
+	"unsafe"
 )
 
 const (
@@ -129,9 +130,9 @@ type Pool struct {
 // Returns Pool object, requires Pool.Close() to be called explicitly
 // for memory cleanup after object is not needed anymore.
 func PoolOpen(name string) (pool Pool, err error) {
-	namestr := C.CString(name)
-	pool.list = C.zpool_list_open(libzfsHandle, namestr)
-	C.free_cstring(namestr)
+	csName := C.CString(name)
+	defer C.free(unsafe.Pointer(csName))
+	pool.list = C.zpool_list_open(libzfsHandle, csName)
 
 	if pool.list != nil {
 		err = pool.ReloadProperties()
@@ -227,11 +228,10 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 		}
 		vname := C.zpool_vdev_name(libzfsHandle, nil, C.nvlist_array_at(child, c),
 			C.B_TRUE)
-
 		var vdev VDevTree
 		vdev, err = poolGetConfig(C.GoString(vname),
 			C.nvlist_array_at(child, c))
-		C.free_cstring(vname)
+		C.free(unsafe.Pointer(vname))
 		if err != nil {
 			return
 		}
@@ -251,9 +251,12 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 	config = nil
 	var elem *C.nvpair_t
 	numofp := len(searchpaths)
-	cpaths := C.alloc_strings(C.int(numofp))
+	cpaths := C.alloc_cstrings(C.int(numofp))
+	defer C.free(unsafe.Pointer(cpaths))
 	for i, path := range searchpaths {
-		C.strings_setat(cpaths, C.int(i), C.CString(path))
+		csPath := C.CString(path)
+		defer C.free(unsafe.Pointer(csPath))
+		C.strings_setat(cpaths, C.int(i), csPath)
 	}
 
 	pools := C.zpool_find_import(libzfsHandle, C.int(numofp), cpaths)
@@ -308,9 +311,12 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 	errPoolList := errors.New("Failed to list pools")
 	var elem *C.nvpair_t
 	numofp := len(searchpaths)
-	cpaths := C.alloc_strings(C.int(numofp))
+	cpaths := C.alloc_cstrings(C.int(numofp))
+	defer C.free(unsafe.Pointer(cpaths))
 	for i, path := range searchpaths {
-		C.strings_setat(cpaths, C.int(i), C.CString(path))
+		csPath := C.CString(path)
+		defer C.free(unsafe.Pointer(csPath))
+		C.strings_setat(cpaths, C.int(i), csPath)
 	}
 
 	pools := C.zpool_find_import(libzfsHandle, C.int(numofp), cpaths)
@@ -446,7 +452,7 @@ func PoolStateToName(state PoolState) (name string) {
 	return
 }
 
-// Refresh the pool's vdev statistics, e.g. bytes read/written.
+// RefreshStats the pool's vdev statistics, e.g. bytes read/written.
 func (pool *Pool) RefreshStats() (err error) {
 	if 0 != C.refresh_stats(pool.list) {
 		return errors.New("error refreshing stats")
@@ -520,11 +526,9 @@ func (pool *Pool) GetProperty(p Prop) (prop Property, err error) {
 // feature in Features map.
 func (pool *Pool) GetFeature(name string) (value string, err error) {
 	var fvalue [512]C.char
-	var sname *C.char
-	sname = C.CString(fmt.Sprint("feature@", name))
-	r := C.zpool_prop_get_feature(pool.list.zph, sname, &(fvalue[0]), 512)
-	C.free_cstring(sname)
-
+	csName := C.CString(fmt.Sprint("feature@", name))
+	r := C.zpool_prop_get_feature(pool.list.zph, csName, &(fvalue[0]), 512)
+	C.free(unsafe.Pointer(csName))
 	if r != 0 {
 		err = errors.New(fmt.Sprint("Unknown zpool feature: ", name))
 		return
@@ -545,7 +549,11 @@ func (pool *Pool) SetProperty(p Prop, value string) (err error) {
 				PoolPropertyToName(p)))
 			return
 		}
-		r := C.zpool_set_prop(pool.list.zph, C.CString(PoolPropertyToName(p)), C.CString(value))
+		csPropName := C.CString(PoolPropertyToName(p))
+		csPropValue := C.CString(value)
+		r := C.zpool_set_prop(pool.list.zph, csPropName, csPropValue)
+		C.free(unsafe.Pointer(csPropName))
+		C.free(unsafe.Pointer(csPropValue))
 		if r != 0 {
 			err = LastError()
 		} else {
@@ -622,7 +630,9 @@ func toCPoolProperties(props PoolProperties) (cprops *C.nvlist_t) {
 	cprops = nil
 	for prop, value := range props {
 		name := C.zpool_prop_to_name(C.zpool_prop_t(prop))
-		r := C.add_prop_list(name, C.CString(value), &cprops, C.boolean_t(1))
+		csPropValue := C.CString(value)
+		r := C.add_prop_list(name, csPropValue, &cprops, C.boolean_t(1))
+		C.free(unsafe.Pointer(csPropValue))
 		if r != 0 {
 			if cprops != nil {
 				C.nvlist_free(cprops)
@@ -638,7 +648,9 @@ func toCDatasetProperties(props DatasetProperties) (cprops *C.nvlist_t) {
 	cprops = nil
 	for prop, value := range props {
 		name := C.zfs_prop_to_name(C.zfs_prop_t(prop))
-		r := C.add_prop_list(name, C.CString(value), &cprops, C.boolean_t(0))
+		csPropValue := C.CString(value)
+		r := C.add_prop_list(name, csPropValue, &cprops, C.boolean_t(0))
+		C.free(unsafe.Pointer(csPropValue))
 		if r != 0 {
 			if cprops != nil {
 				C.nvlist_free(cprops)
@@ -691,8 +703,11 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 				vdev.Type, mindevs, maxdevs)
 			return
 		}
-		if r := C.nvlist_add_string(child, C.sZPOOL_CONFIG_TYPE,
-			C.CString(string(vdev.Type))); r != 0 {
+		csType := C.CString(string(vdev.Type))
+		r := C.nvlist_add_string(child, C.sZPOOL_CONFIG_TYPE,
+			csType)
+		C.free(unsafe.Pointer(csType))
+		if r != 0 {
 			err = errors.New("Failed to set vdev type")
 			return
 		}
@@ -724,9 +739,12 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 			}
 			// }
 			if len(vdev.Path) > 0 {
-				if r := C.nvlist_add_string(
+				csPath := C.CString(vdev.Path)
+				r := C.nvlist_add_string(
 					child, C.sZPOOL_CONFIG_PATH,
-					C.CString(vdev.Path)); r != 0 {
+					csPath)
+				C.free(unsafe.Pointer(csPath))
+				if r != 0 {
 					err = errors.New("Failed to allocate vdev child (type)")
 					return
 				}
@@ -793,8 +811,11 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 		err = errors.New("Failed to allocate root vdev")
 		return
 	}
-	if r := C.nvlist_add_string(nvroot, C.sZPOOL_CONFIG_TYPE,
-		C.CString(string(VDevTypeRoot))); r != 0 {
+	csTypeRoot := C.CString(string(VDevTypeRoot))
+	r := C.nvlist_add_string(nvroot, C.sZPOOL_CONFIG_TYPE,
+		csTypeRoot)
+	C.free(unsafe.Pointer(csTypeRoot))
+	if r != 0 {
 		err = errors.New("Failed to allocate root vdev")
 		return
 	}
@@ -821,9 +842,12 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 		return
 	}
 	for fname, fval := range features {
-		sfname := fmt.Sprintf("feature@%s", fname)
-		r := C.add_prop_list(C.CString(sfname), C.CString(fval), &cprops,
+		csName := C.CString(fmt.Sprintf("feature@%s", fname))
+		csVal := C.CString(fval)
+		r := C.add_prop_list(csName, csVal, &cprops,
 			C.boolean_t(1))
+		C.free(unsafe.Pointer(csName))
+		C.free(unsafe.Pointer(csVal))
 		if r != 0 {
 			if cprops != nil {
 				C.nvlist_free(cprops)
@@ -834,7 +858,9 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	}
 
 	// Create actual pool then open
-	if r := C.zpool_create(libzfsHandle, C.CString(name), nvroot,
+	csName := C.CString(name)
+	defer C.free(unsafe.Pointer(csName))
+	if r := C.zpool_create(libzfsHandle, csName, nvroot,
 		cprops, cfsprops); r != 0 {
 		err = LastError()
 		err = errors.New(err.Error() + " (zpool_create)")
@@ -868,7 +894,9 @@ func (pool *Pool) Destroy(logStr string) (err error) {
 		err = errors.New(msgPoolIsNil)
 		return
 	}
-	retcode := C.zpool_destroy(pool.list.zph, C.CString(logStr))
+	csLog := C.CString(logStr)
+	defer C.free(unsafe.Pointer(csLog))
+	retcode := C.zpool_destroy(pool.list.zph, csLog)
 	if retcode != 0 {
 		err = LastError()
 	}
@@ -884,7 +912,9 @@ func (pool *Pool) Export(force bool, log string) (err error) {
 	if force {
 		forcet = 1
 	}
-	if rc := C.zpool_export(pool.list.zph, forcet, C.CString(log)); rc != 0 {
+	csLog := C.CString(log)
+	defer C.free(unsafe.Pointer(csLog))
+	if rc := C.zpool_export(pool.list.zph, forcet, csLog); rc != 0 {
 		err = LastError()
 	}
 	return
@@ -892,11 +922,11 @@ func (pool *Pool) Export(force bool, log string) (err error) {
 
 // ExportForce hard force export of the pool from the system.
 func (pool *Pool) ExportForce(log string) (err error) {
-	logstr := C.CString(log)
-	if rc := C.zpool_export_force(pool.list.zph, logstr); rc != 0 {
+	csLog := C.CString(log)
+	defer C.free(unsafe.Pointer(csLog))
+	if rc := C.zpool_export_force(pool.list.zph, csLog); rc != 0 {
 		err = LastError()
 	}
-	C.free_cstring(logstr)
 	return
 }
 

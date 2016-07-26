@@ -462,10 +462,6 @@ void nvlist_free_array(nvlist_t **a) {
 	free(a);
 }
 
-void free_cstring(char *str) {
-	free(str);
-}
-
 nvlist_t *nvlist_array_at(nvlist_t **a, uint_t i) {
 	return a[i];
 }

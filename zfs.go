@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"errors"
+	"unsafe"
 )
 
 const (
@@ -104,7 +105,9 @@ func DatasetCloseAll(datasets []Dataset) {
 // DatasetOpen open dataset and all of its recursive children datasets
 func DatasetOpen(path string) (d Dataset, err error) {
 	d.list = C.create_dataset_list_item()
-	d.list.zh = C.zfs_open(libzfsHandle, C.CString(path), 0xF)
+	csPath := C.CString(path)
+	d.list.zh = C.zfs_open(libzfsHandle, csPath, 0xF)
+	C.free(unsafe.Pointer(csPath))
 
 	if d.list.zh == nil {
 		err = LastError()
@@ -129,9 +132,11 @@ func datasetPropertiesTonvlist(props map[Prop]Property) (
 		return
 	}
 	for prop, value := range props {
+		csValue := C.CString(value.Value)
 		r := C.nvlist_add_string(
 			cprops, C.zfs_prop_to_name(
-				C.zfs_prop_t(prop)), C.CString(value.Value))
+				C.zfs_prop_t(prop)), csValue)
+		C.free(unsafe.Pointer(csValue))
 		if r != 0 {
 			err = errors.New("Failed to convert property")
 			return
@@ -150,8 +155,10 @@ func DatasetCreate(path string, dtype DatasetType,
 	}
 	defer C.nvlist_free(cprops)
 
-	errcode := C.zfs_create(libzfsHandle, C.CString(path),
+	csPath := C.CString(path)
+	errcode := C.zfs_create(libzfsHandle, csPath,
 		C.zfs_type_t(dtype), cprops)
+	C.free(unsafe.Pointer(csPath))
 	if errcode != 0 {
 		err = LastError()
 	}
@@ -179,6 +186,9 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 			return
 		}
 		dsType, e := d.GetProperty(DatasetPropType)
+		if e != nil {
+			dsType.Value = err.Error() // just put error (why it didn't fetch property type)
+		}
 		err = errors.New("Cannot destroy dataset " + path +
 			": " + dsType.Value + " has children")
 		return
@@ -276,8 +286,10 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
+	csValue := C.CString(value)
 	errcode := C.zfs_prop_set(d.list.zh, C.zfs_prop_to_name(
-		C.zfs_prop_t(p)), C.CString(value))
+		C.zfs_prop_t(p)), csValue)
+	C.free(unsafe.Pointer(csValue))
 	if errcode != 0 {
 		err = LastError()
 	}
@@ -300,7 +312,9 @@ func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err
 		return
 	}
 	defer C.nvlist_free(cprops)
-	if errc := C.zfs_clone(d.list.zh, C.CString(target), cprops); errc != 0 {
+	csTarget := C.CString(target)
+	defer C.free(unsafe.Pointer(csTarget))
+	if errc := C.zfs_clone(d.list.zh, csTarget, cprops); errc != 0 {
 		err = LastError()
 		return
 	}
@@ -315,7 +329,9 @@ func DatasetSnapshot(path string, recur bool, props map[Prop]Property) (rd Datas
 		return
 	}
 	defer C.nvlist_free(cprops)
-	if errc := C.zfs_snapshot(libzfsHandle, C.CString(path), booleanT(recur), cprops); errc != 0 {
+	csPath := C.CString(path)
+	defer C.free(unsafe.Pointer(csPath))
+	if errc := C.zfs_snapshot(libzfsHandle, csPath, booleanT(recur), cprops); errc != 0 {
 		err = LastError()
 		return
 	}
@@ -348,13 +364,15 @@ func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 }
 
 // Rename dataset
-func (d *Dataset) Rename(newname string, recur,
+func (d *Dataset) Rename(newName string, recur,
 	forceUnmount bool) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	if errc := C.zfs_rename(d.list.zh, C.CString(newname),
+	csNewName := C.CString(newName)
+	defer C.free(unsafe.Pointer(csNewName))
+	if errc := C.zfs_rename(d.list.zh, csNewName,
 		booleanT(recur), booleanT(forceUnmount)); errc != 0 {
 		err = LastError()
 	}
@@ -370,7 +388,7 @@ func (d *Dataset) IsMounted() (mounted bool, where string) {
 		return false, ""
 	}
 	m := C.zfs_is_mounted(d.list.zh, &cw)
-	defer C.free_cstring(cw)
+	defer C.free(unsafe.Pointer(cw))
 	if m != 0 {
 		return true, C.GoString(cw)
 	}
@@ -383,7 +401,9 @@ func (d *Dataset) Mount(options string, flags int) (err error) {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	if ec := C.zfs_mount(d.list.zh, C.CString(options), C.int(flags)); ec != 0 {
+	csOptions := C.CString(options)
+	defer C.free(unsafe.Pointer(csOptions))
+	if ec := C.zfs_mount(d.list.zh, csOptions, C.int(flags)); ec != 0 {
 		err = LastError()
 	}
 	return
