@@ -100,9 +100,9 @@ func zpoolTestPoolCreate(t *testing.T) {
 	fsprops := make(map[zfs.Prop]string)
 	features := make(map[string]string)
 	fsprops[zfs.DatasetPropMountpoint] = "none"
-	features["async_destroy"] = "enabled"
-	features["empty_bpobj"] = "enabled"
-	features["lz4_compress"] = "enabled"
+	features["async_destroy"] = zfs.FENABLED
+	features["empty_bpobj"] = zfs.FENABLED
+	features["lz4_compress"] = zfs.FENABLED
 
 	pool, err := zfs.PoolCreate(TSTPoolName, vdevs, features, props, fsprops)
 	if err != nil {

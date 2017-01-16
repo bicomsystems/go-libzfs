@@ -18,6 +18,12 @@ const (
 	msgPoolIsNil = "Pool handle not initialized or its closed"
 )
 
+// Enable or disable pool feature with this constants
+const (
+	FENABLED  = "enabled"
+	FDISABLED = "disabled"
+)
+
 // PoolProperties type is map of pool properties name -> value
 type PoolProperties map[Prop]string
 
@@ -825,6 +831,16 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	if err = buildVDevTree(nvroot, VDevTypeRoot, vdevs, props); err != nil {
 		return
 	}
+
+	// Enable 0.6.5 features per default
+	features["spacemap_histogram"] = FENABLED
+	features["enabled_txg"] = FENABLED
+	features["hole_birth"] = FENABLED
+	features["extensible_dataset"] = FENABLED
+	features["embedded_data"] = FENABLED
+	features["bookmarks"] = FENABLED
+	features["filesystem_limits"] = FENABLED
+	features["large_blocks"] = FENABLED
 
 	// convert properties
 	cprops := toCPoolProperties(props)
