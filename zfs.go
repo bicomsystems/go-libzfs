@@ -278,6 +278,26 @@ func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 	return
 }
 
+func (d *Dataset) GetUserProperty(p string) (prop Property, err error) {
+	if d.list == nil {
+		err = errors.New(msgDatasetIsNil)
+		return
+	}
+	var plist *C.property_list_t
+	plist = C.new_property_list()
+	defer C.free_properties(plist)
+	csp := C.CString(p)
+	defer C.free(unsafe.Pointer(csp))
+	errcode := C.read_user_property(d.list.zh, plist, csp)
+	if errcode != 0 {
+		err = LastError()
+		return
+	}
+	prop = Property{Value: C.GoString(&(*plist).value[0]),
+		Source: C.GoString(&(*plist).source[0])}
+	return
+}
+
 // SetProperty set ZFS dataset property to value. Not all properties can be set,
 // some can be set only at creation time and some are read only.
 // Always check if returned error and its description.
@@ -296,6 +316,22 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 	// Update Properties member with change made
 	if _, err = d.GetProperty(p); err != nil {
 		return
+	}
+	return
+}
+
+func (d *Dataset) SetUserProperty(prop, value string) (err error) {
+	if d.list == nil {
+		err = errors.New(msgDatasetIsNil)
+		return
+	}
+	csValue := C.CString(value)
+	csProp := C.CString(prop)
+	errcode := C.zfs_prop_set(d.list.zh, csProp, csValue)
+	C.free(unsafe.Pointer(csValue))
+	C.free(unsafe.Pointer(csProp))
+	if errcode != 0 {
+		err = LastError()
 	}
 	return
 }

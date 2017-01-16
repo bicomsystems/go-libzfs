@@ -21,6 +21,7 @@ int dataset_list_children(zfs_handle_t *zfs, dataset_list_t **first);
 dataset_list_t *dataset_next(dataset_list_t *dataset);
 
 int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop);
+int read_user_property(zfs_handle_t *zh, property_list_t *list, const char* prop);
 
 int clear_last_error(libzfs_handle_t *libzfs);
 

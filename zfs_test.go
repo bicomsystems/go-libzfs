@@ -74,7 +74,22 @@ func zfsTestDatasetOpen(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	d.Close()
+	defer d.Close()
+	print("PASS\n\n")
+
+	println("TEST Set/GetUserProperty(prop, value string) ... ")
+	var p zfs.Property
+	// Test set/get user property
+	if err = d.SetUserProperty("go-libzfs:test", "yes"); err != nil {
+		t.Error(err)
+		return
+	}
+	if p, err = d.GetUserProperty("go-libzfs:test"); err != nil {
+		t.Error(err)
+		return
+	}
+	println("go-libzfs:test", " = ",
+		p.Value)
 	print("PASS\n\n")
 }
 

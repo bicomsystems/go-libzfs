@@ -82,6 +82,47 @@ int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop) {
 	return r;
 }
 
+int read_user_property(zfs_handle_t *zh, property_list_t *list, const char *prop) {
+	nvlist_t *user_props = zfs_get_user_props(zh);
+	nvlist_t *propval;
+	zprop_source_t sourcetype;
+	char *strval;
+	char *sourceval;
+	// char source[ZFS_MAX_DATASET_NAME_LEN];
+	
+	if (nvlist_lookup_nvlist(user_props,
+		prop, &propval) != 0) {
+		sourcetype = ZPROP_SRC_NONE;
+		(void) strncpy(list->source,
+				"none", sizeof (list->source));
+		strval = "-";
+	} else {
+		verify(nvlist_lookup_string(propval,
+			ZPROP_VALUE, &strval) == 0);
+		verify(nvlist_lookup_string(propval,
+			ZPROP_SOURCE, &sourceval) == 0);
+
+		if (strcmp(sourceval,
+			zfs_get_name(zh)) == 0) {
+			sourcetype = ZPROP_SRC_LOCAL;
+			(void) strncpy(list->source,
+				"local", sizeof (list->source));
+		} else if (strcmp(sourceval,
+			ZPROP_SOURCE_VAL_RECVD) == 0) {
+			sourcetype = ZPROP_SRC_RECEIVED;
+			(void) strncpy(list->source,
+				"received", sizeof (list->source));
+		} else {
+			sourcetype = ZPROP_SRC_INHERITED;
+			(void) strncpy(list->source,
+				sourceval, sizeof (list->source));
+		}
+	}
+	(void) strncpy(list->value,
+				strval, sizeof (list->value));
+	return 0;
+}
+
 int clear_last_error(libzfs_handle_t *hdl) {
 	zfs_standard_error(hdl, EZFS_SUCCESS, "success");
 	return 0;

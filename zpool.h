@@ -7,6 +7,8 @@
 
 #define INT_MAX_NAME 256
 #define INT_MAX_VALUE 1024
+#define	ZAP_OLDMAXVALUELEN 1024
+#define	ZFS_MAX_DATASET_NAME_LEN 256
 
 struct zpool_list {
 	zpool_handle_t *zph;
@@ -15,7 +17,7 @@ struct zpool_list {
 
 typedef struct property_list {
 	char value[INT_MAX_VALUE];
-	char source[INT_MAX_NAME];
+	char source[ZFS_MAX_DATASET_NAME_LEN];
 	int property;
 	void *pnext;
 } property_list_t;
