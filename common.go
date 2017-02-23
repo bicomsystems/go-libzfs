@@ -26,7 +26,7 @@ import (
 // VDevType type of device in the pool
 type VDevType string
 
-var libzfsHandle *C.struct_libzfs_handle
+var libzfsHandle C.libzfs_handle_ptr
 
 func init() {
 	libzfsHandle = C.libzfs_init()

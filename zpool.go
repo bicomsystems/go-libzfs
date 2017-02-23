@@ -127,7 +127,7 @@ type ExportedPool struct {
 // give easy access to listing all available properties. It can be refreshed
 // with up to date values with call to (*Pool) ReloadProperties
 type Pool struct {
-	list       *C.zpool_list_t
+	list       C.zpool_list_ptr
 	Properties []Property
 	Features   map[string]string
 }
@@ -148,14 +148,14 @@ func PoolOpen(name string) (pool Pool, err error) {
 	return
 }
 
-func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
-	var dtype *C.char
+func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
+	var dtype C.char_ptr
 	var c, children C.uint_t
 	var notpresent C.uint64_t
-	var vs *C.vdev_stat_t
-	var ps *C.pool_scan_stat_t
-	var child **C.nvlist_t
-	if 0 != C.nvlist_lookup_string(nv, C.sZPOOL_CONFIG_TYPE, &dtype) {
+	var vs C.vdev_stat_ptr
+	var ps C.pool_scan_stat_ptr
+	var child *C.nvlist_ptr
+	if 0 != C.nvlist_lookup_string(nv, C.sZPOOL_CONFIG_TYPE, unsafe.Pointer(&dtype)) {
 		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_TYPE)
 		return
 	}
@@ -167,7 +167,7 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 
 	// Fetch vdev state
 	if 0 != C.nvlist_lookup_uint64_array_vds(nv, C.sZPOOL_CONFIG_VDEV_STATS,
-		&vs, &c) {
+		unsafe.Pointer(&vs), &c) {
 		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_STATS)
 		return
 	}
@@ -193,7 +193,7 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 
 	// Fetch vdev scan stats
 	if 0 == C.nvlist_lookup_uint64_array_ps(nv, C.sZPOOL_CONFIG_SCAN_STATS,
-		&ps, &c) {
+		unsafe.Pointer(&ps), &c) {
 		vdevs.ScanStat.Func = uint64(ps.pss_func)
 		vdevs.ScanStat.State = uint64(ps.pss_state)
 		vdevs.ScanStat.StartTime = uint64(ps.pss_start_time)
@@ -209,7 +209,7 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 
 	// Fetch the children
 	if C.nvlist_lookup_nvlist_array(nv, C.sZPOOL_CONFIG_CHILDREN,
-		&child, &children) != 0 {
+		unsafe.Pointer(&child), &children) != 0 {
 		return
 	}
 	if children > 0 {
@@ -217,8 +217,8 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 	}
 	if C.nvlist_lookup_uint64(nv, C.sZPOOL_CONFIG_NOT_PRESENT,
 		&notpresent) == 0 {
-		var path *C.char
-		if 0 != C.nvlist_lookup_string(nv, C.sZPOOL_CONFIG_PATH, &path) {
+		var path C.char_ptr
+		if 0 != C.nvlist_lookup_string(nv, C.sZPOOL_CONFIG_PATH, unsafe.Pointer(&path)) {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_PATH)
 			return
 		}
@@ -249,13 +249,13 @@ func poolGetConfig(name string, nv *C.nvlist_t) (vdevs VDevTree, err error) {
 // PoolImportSearch - Search pools available to import but not imported.
 // Returns array of found pools.
 func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
-	var config, nvroot *C.nvlist_t
-	var cname, msgid, comment *C.char
+	var config, nvroot C.nvlist_ptr
+	var cname, msgid, comment C.char_ptr
 	var poolState, guid C.uint64_t
 	var reason C.zpool_status_t
 	var errata C.zpool_errata_t
 	config = nil
-	var elem *C.nvpair_t
+	var elem C.nvpair_ptr
 	numofp := len(searchpaths)
 	cpaths := C.alloc_cstrings(C.int(numofp))
 	defer C.free(unsafe.Pointer(cpaths))
@@ -271,7 +271,7 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 	epools = make([]ExportedPool, 0, 1)
 	for ; elem != nil; elem = C.nvlist_next_nvpair(pools, elem) {
 		ep := ExportedPool{}
-		if C.nvpair_value_nvlist(elem, &config) != 0 {
+		if C.nvpair_value_nvlist(elem, unsafe.Pointer(&config)) != 0 {
 			err = LastError()
 			return
 		}
@@ -281,7 +281,7 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 			return
 		}
 		ep.State = PoolState(poolState)
-		if C.nvlist_lookup_string(config, C.sZPOOL_CONFIG_POOL_NAME, &cname) != 0 {
+		if C.nvlist_lookup_string(config, C.sZPOOL_CONFIG_POOL_NAME, unsafe.Pointer(&cname)) != 0 {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_NAME)
 			return
 		}
@@ -294,12 +294,12 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		reason = C.zpool_import_status(config, &msgid, &errata)
 		ep.Status = PoolStatus(reason)
 
-		if C.nvlist_lookup_string(config, C.sZPOOL_CONFIG_COMMENT, &comment) == 0 {
+		if C.nvlist_lookup_string(config, C.sZPOOL_CONFIG_COMMENT, unsafe.Pointer(&comment)) == 0 {
 			ep.Comment = C.GoString(comment)
 		}
 
 		if C.nvlist_lookup_nvlist(config, C.sZPOOL_CONFIG_VDEV_TREE,
-			&nvroot) != 0 {
+			unsafe.Pointer(&nvroot)) != 0 {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_TREE)
 			return
 		}
@@ -311,8 +311,8 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 
 func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 	err error) {
-	var config *C.nvlist_t
-	var cname *C.char
+	var config C.nvlist_ptr
+	var cname C.char_ptr
 	config = nil
 	errPoolList := errors.New("Failed to list pools")
 	var elem *C.nvpair_t
@@ -332,7 +332,7 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 	for ; elem != nil; elem = C.nvlist_next_nvpair(pools, elem) {
 		var cq *C.char
 		var tconfig *C.nvlist_t
-		retcode := C.nvpair_value_nvlist(elem, &tconfig)
+		retcode := C.nvpair_value_nvlist(elem, unsafe.Pointer(&tconfig))
 		if retcode != 0 {
 			err = errPoolList
 			return
@@ -351,7 +351,7 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 			}
 		} else {
 			if retcode = C.nvlist_lookup_string(tconfig,
-				C.sZPOOL_CONFIG_POOL_NAME, &cq); retcode != 0 {
+				C.sZPOOL_CONFIG_POOL_NAME, unsafe.Pointer(&cq)); retcode != 0 {
 				err = errPoolList
 				return
 			}
@@ -370,7 +370,7 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 	if guid {
 		// We need to get name so we can open pool by name
 		if retcode := C.nvlist_lookup_string(config,
-			C.sZPOOL_CONFIG_POOL_NAME, &cname); retcode != 0 {
+			C.sZPOOL_CONFIG_POOL_NAME, unsafe.Pointer(&cname)); retcode != 0 {
 			err = errPoolList
 			return
 		}
@@ -416,7 +416,7 @@ func PoolImportByGUID(guid string, searchpaths []string) (pool Pool, err error) 
 // anymore. Call Pool.Close() method.
 func PoolOpenAll() (pools []Pool, err error) {
 	var pool Pool
-	errcode := C.zpool_list(libzfsHandle, &pool.list)
+	errcode := C.zpool_list(libzfsHandle, unsafe.Pointer(&pool.list))
 	for pool.list != nil {
 		err = pool.ReloadProperties()
 		if err != nil {
@@ -516,7 +516,7 @@ func (pool *Pool) GetProperty(p Prop) (prop Property, err error) {
 			return
 		}
 		var list C.property_list_t
-		r := C.read_zpool_property(pool.list.zph, &list, C.int(p))
+		r := C.read_zpool_property(pool.list.zph, unsafe.Pointer(&list), C.int(p))
 		if r != 0 {
 			err = LastError()
 		}
@@ -632,12 +632,12 @@ func (vdev *VDevTree) isLog() (r C.uint64_t) {
 	return
 }
 
-func toCPoolProperties(props PoolProperties) (cprops *C.nvlist_t) {
+func toCPoolProperties(props PoolProperties) (cprops C.nvlist_ptr) {
 	cprops = nil
 	for prop, value := range props {
 		name := C.zpool_prop_to_name(C.zpool_prop_t(prop))
 		csPropValue := C.CString(value)
-		r := C.add_prop_list(name, csPropValue, &cprops, C.boolean_t(1))
+		r := C.add_prop_list(name, csPropValue, unsafe.Pointer(&cprops), C.boolean_t(1))
 		C.free(unsafe.Pointer(csPropValue))
 		if r != 0 {
 			if cprops != nil {
@@ -650,12 +650,12 @@ func toCPoolProperties(props PoolProperties) (cprops *C.nvlist_t) {
 	return
 }
 
-func toCDatasetProperties(props DatasetProperties) (cprops *C.nvlist_t) {
+func toCDatasetProperties(props DatasetProperties) (cprops C.nvlist_ptr) {
 	cprops = nil
 	for prop, value := range props {
 		name := C.zfs_prop_to_name(C.zfs_prop_t(prop))
 		csPropValue := C.CString(value)
-		r := C.add_prop_list(name, csPropValue, &cprops, C.boolean_t(0))
+		r := C.add_prop_list(name, csPropValue, unsafe.Pointer(&cprops), C.boolean_t(0))
 		C.free(unsafe.Pointer(csPropValue))
 		if r != 0 {
 			if cprops != nil {
@@ -696,9 +696,9 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 	defer C.nvlist_free_array(l2cache)
 	for i, vdev := range vdevs {
 		grouping, mindevs, maxdevs := vdev.isGrouping()
-		var child *C.nvlist_t
+		var child C.nvlist_ptr
 		// fmt.Println(vdev.Type)
-		if r := C.nvlist_alloc(&child, C.NV_UNIQUE_NAME, 0); r != 0 {
+		if r := C.nvlist_alloc(unsafe.Pointer(&child), C.NV_UNIQUE_NAME, 0); r != 0 {
 			err = errors.New("Failed to allocate vdev")
 			return
 		}
@@ -812,8 +812,8 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	props PoolProperties, fsprops DatasetProperties) (pool Pool, err error) {
 	// create root vdev nvroot
-	var nvroot *C.nvlist_t
-	if r := C.nvlist_alloc(&nvroot, C.NV_UNIQUE_NAME, 0); r != 0 {
+	var nvroot C.nvlist_ptr
+	if r := C.nvlist_alloc(unsafe.Pointer(&nvroot), C.NV_UNIQUE_NAME, 0); r != 0 {
 		err = errors.New("Failed to allocate root vdev")
 		return
 	}
@@ -860,7 +860,7 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	for fname, fval := range features {
 		csName := C.CString(fmt.Sprintf("feature@%s", fname))
 		csVal := C.CString(fval)
-		r := C.add_prop_list(csName, csVal, &cprops,
+		r := C.add_prop_list(csName, csVal, unsafe.Pointer(&cprops),
 			C.boolean_t(1))
 		C.free(unsafe.Pointer(csName))
 		C.free(unsafe.Pointer(csVal))
@@ -890,14 +890,14 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 
 // Status get pool status. Let you check if pool healthy.
 func (pool *Pool) Status() (status PoolStatus, err error) {
-	var msgid *C.char
+	var msgid C.char_ptr
 	var reason C.zpool_status_t
 	var errata C.zpool_errata_t
 	if pool.list == nil {
 		err = errors.New(msgPoolIsNil)
 		return
 	}
-	reason = C.zpool_get_status(pool.list.zph, &msgid, &errata)
+	reason = C.zpool_get_status(pool.list.zph, unsafe.Pointer(&msgid), &errata)
 	status = PoolStatus(reason)
 	return
 }
@@ -948,7 +948,7 @@ func (pool *Pool) ExportForce(log string) (err error) {
 
 // VDevTree - Fetch pool's current vdev tree configuration, state and stats
 func (pool *Pool) VDevTree() (vdevs VDevTree, err error) {
-	var nvroot *C.nvlist_t
+	var nvroot C.nvlist_ptr
 	var poolName string
 	config := C.zpool_get_config(pool.list.zph, nil)
 	if config == nil {
@@ -956,7 +956,7 @@ func (pool *Pool) VDevTree() (vdevs VDevTree, err error) {
 		return
 	}
 	if C.nvlist_lookup_nvlist(config, C.sZPOOL_CONFIG_VDEV_TREE,
-		&nvroot) != 0 {
+		unsafe.Pointer(&nvroot)) != 0 {
 		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_TREE)
 		return
 	}

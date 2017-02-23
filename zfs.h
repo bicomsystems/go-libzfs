@@ -11,10 +11,12 @@ struct dataset_list {
 };
 
 typedef struct dataset_list dataset_list_t;
+typedef struct dataset_list* dataset_list_ptr;
 
 
 dataset_list_t *create_dataset_list_item();
 void dataset_list_close(dataset_list_t *list);
+void dataset_list_free(dataset_list_t *list);
 
 int dataset_list_root(libzfs_handle_t *libzfs, dataset_list_t **first);
 int dataset_list_children(zfs_handle_t *zfs, dataset_list_t **first);

@@ -20,6 +20,16 @@ dataset_list_t *create_dataset_list_item() {
 void dataset_list_close(dataset_list_t *list) {
 	zfs_close(list->zh);
 	free(list);
+	// dataset_list_free(list);
+}
+
+void dataset_list_free(dataset_list_t *list) {
+	dataset_list_t *next;
+	while(list) {
+		next = list->pnext;
+		free(list);
+		list = next;
+	}
 }
 
 int dataset_list_callb(zfs_handle_t *dataset, void *data) {
@@ -44,7 +54,7 @@ int dataset_list_root(libzfs_handle_t *libzfs, dataset_list_t **first) {
 		*first = zlist;
 	} else {
 		*first = 0;
-		free(zlist);
+		dataset_list_free(zlist);
 	}
 	return err;
 }
@@ -62,7 +72,7 @@ int dataset_list_children(zfs_handle_t *zfs, dataset_list_t **first) {
 		*first = zlist;
 	} else {
 		*first = 0;
-		free(zlist);
+		dataset_list_free(zlist);
 	}
 	return err;
 }

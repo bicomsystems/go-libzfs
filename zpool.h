@@ -23,6 +23,15 @@ typedef struct property_list {
 } property_list_t;
 
 typedef struct zpool_list zpool_list_t;
+typedef struct zpool_list* zpool_list_ptr;
+typedef struct libzfs_handle* libzfs_handle_ptr;
+typedef struct nvlist* nvlist_ptr;
+typedef struct property_list *property_list_ptr;
+typedef struct pool_scan_stat* pool_scan_stat_ptr;
+typedef struct nvpair* nvpair_ptr;
+
+typedef struct vdev_stat* vdev_stat_ptr;
+typedef char* char_ptr;
 
 property_list_t *new_property_list();
 
