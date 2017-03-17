@@ -407,6 +407,18 @@ func (d *Dataset) Rollback(snap *Dataset, force bool) (err error) {
 	return
 }
 
+// Promote promotes dataset clone
+func (d *Dataset) Promote() (err error) {
+	if d.list == nil {
+		err = errors.New(msgDatasetIsNil)
+		return
+	}
+	if errc := C.zfs_promote(d.list.zh); errc != 0 {
+		err = LastError()
+	}
+	return
+}
+
 // Rename dataset
 func (d *Dataset) Rename(newName string, recur,
 	forceUnmount bool) (err error) {
