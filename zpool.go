@@ -210,13 +210,13 @@ func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
 	// Fetch the children
 	if C.nvlist_lookup_nvlist_array(nv, C.sZPOOL_CONFIG_CHILDREN,
 		unsafe.Pointer(&child), &children) != 0 {
-		return
+		children = 0
 	}
 	if children > 0 {
 		vdevs.Devices = make([]VDevTree, 0, children)
 	}
 	if C.nvlist_lookup_uint64(nv, C.sZPOOL_CONFIG_NOT_PRESENT,
-		&notpresent) == 0 {
+		&notpresent) == 0 || notpresent != 0 {
 		var path C.char_ptr
 		if 0 != C.nvlist_lookup_string(nv, C.sZPOOL_CONFIG_PATH, unsafe.Pointer(&path)) {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_PATH)
