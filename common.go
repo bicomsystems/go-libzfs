@@ -14,6 +14,7 @@ package zfs
 
 #include <stdlib.h>
 #include <libzfs.h>
+#include "common.h"
 #include "zpool.h"
 #include "zfs.h"
 */
@@ -26,10 +27,8 @@ import (
 // VDevType type of device in the pool
 type VDevType string
 
-var libzfsHandle C.libzfs_handle_ptr
-
 func init() {
-	libzfsHandle = C.libzfs_init()
+	C.go_libzfs_init()
 	return
 }
 
@@ -256,17 +255,13 @@ const (
 
 // LastError get last underlying libzfs error description if any
 func LastError() (err error) {
-	errno := C.libzfs_errno(libzfsHandle)
-	if errno == 0 {
-		return nil
-	}
-	return errors.New(C.GoString(C.libzfs_error_description(libzfsHandle)))
+	return errors.New(C.GoString(C.libzfs_last_error_str()))
 }
 
 // ClearLastError force clear of any last error set by undeliying libzfs
 func ClearLastError() (err error) {
 	err = LastError()
-	C.clear_last_error(libzfsHandle)
+	C.libzfs_clear_last_error()
 	return
 }
 

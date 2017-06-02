@@ -159,7 +159,7 @@ func zpoolTestPoolDestroy(t *testing.T) {
 		return
 	}
 	defer p.Close()
-	if err = p.Destroy("Test of pool destroy (" + TSTPoolName + ")"); err != nil {
+	if err = p.Destroy(TSTPoolName); err != nil {
 		t.Error(err.Error())
 		return
 	}

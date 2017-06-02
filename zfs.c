@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "common.h"
 #include "zpool.h"
 #include "zfs.h"
 
@@ -46,59 +47,144 @@ int dataset_list_callb(zfs_handle_t *dataset, void *data) {
 	return 0;
 }
 
-int dataset_list_root(libzfs_handle_t *libzfs, dataset_list_t **first) {
+dataset_list_ptr dataset_list_root() {
 	int err = 0;
 	dataset_list_t *zlist = create_dataset_list_item();
-	err = zfs_iter_root(libzfs, dataset_list_callb, &zlist);
-	if ( zlist->zh ) {
-		*first = zlist;
-	} else {
-		*first = 0;
+	err = zfs_iter_root(libzfsHandle, dataset_list_callb, &zlist);
+	if ( err != 0  || zlist->zh == NULL) {
 		dataset_list_free(zlist);
+		return NULL;
 	}
-	return err;
+	return zlist;
 }
 
-dataset_list_t *dataset_next(dataset_list_t *dataset) {
+dataset_list_ptr dataset_next(dataset_list_t *dataset) {
 	return dataset->pnext;
 }
 
-
-int dataset_list_children(zfs_handle_t *zfs, dataset_list_t **first) {
-	int err = 0;
-	dataset_list_t *zlist = create_dataset_list_item();
-	err = zfs_iter_children(zfs, dataset_list_callb, &zlist);
-	if ( zlist->zh ) {
-		*first = zlist;
-	} else {
-		*first = 0;
-		dataset_list_free(zlist);
-	}
-	return err;
+int dataset_type(dataset_list_ptr dataset) {
+	return zfs_get_type(dataset->zh);
 }
 
-int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop) {
+dataset_list_ptr dataset_open(const char *path) {
+	dataset_list_ptr list = create_dataset_list_item();
+	list->zh = zfs_open(libzfsHandle, path, 0xF);
+	if (list->zh == NULL) {
+		dataset_list_free(list);
+		list = NULL;
+	}
+	return list;
+}
+
+int dataset_create(const char *path, zfs_type_t type, nvlist_ptr props) {
+	return zfs_create(libzfsHandle, path, type, props);
+}
+
+int dataset_destroy(dataset_list_ptr dataset, boolean_t defer) {
+	return zfs_destroy(dataset->zh, defer);
+}
+
+dataset_list_t *dataset_list_children(dataset_list_t *dataset) {
+	int err = 0;
+	dataset_list_t *zlist = create_dataset_list_item();
+	err = zfs_iter_children(dataset->zh, dataset_list_callb, &zlist);
+	if ( err != 0  || zlist->zh == NULL) {
+		dataset_list_free(zlist);
+		return NULL;
+	}
+	return zlist;
+}
+
+zpool_list_ptr dataset_get_pool(dataset_list_ptr dataset) {
+	zpool_list_ptr pool = create_zpool_list_item();
+	if(pool != NULL) {
+		pool->zph = zfs_get_pool_handle(dataset->zh);
+	}
+	return pool;
+}
+
+int dataset_prop_set(dataset_list_ptr dataset, zfs_prop_t prop, const char *value) {
+	return zfs_prop_set(dataset->zh, zfs_prop_to_name(prop), value);
+}
+
+int dataset_user_prop_set(dataset_list_ptr dataset, const char *prop, const char *value) {
+	return zfs_prop_set(dataset->zh, prop, value);
+}
+
+int dataset_clone(dataset_list_ptr dataset, const char *target, nvlist_ptr props) {
+	return zfs_clone(dataset->zh, target, props);
+}
+
+int dataset_snapshot(const char *path, boolean_t recur, nvlist_ptr props) {
+	return zfs_snapshot(libzfsHandle, path, recur, props);
+}
+
+int dataset_rollback(dataset_list_ptr dataset, dataset_list_ptr snapshot, boolean_t force) {
+	return zfs_rollback(dataset->zh, snapshot->zh, force);
+}
+
+int dataset_promote(dataset_list_ptr dataset) {
+	return zfs_promote(dataset->zh);
+}
+
+int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t recur, boolean_t force_unm) {
+	return zfs_rename(dataset->zh, new_name, recur, force_unm);
+}
+
+const char *dataset_is_mounted(dataset_list_ptr dataset){
+	char *mp;
+	if (0 != zfs_is_mounted(dataset->zh, &mp)) {
+		return NULL;
+	}
+	return mp;
+}
+
+int dataset_mount(dataset_list_ptr dataset, const char *options, int flags) {
+	return zfs_mount(dataset->zh, options, flags);
+}
+
+int dataset_unmount(dataset_list_ptr dataset, int flags) {
+	return zfs_unmount(dataset->zh, NULL, flags);
+}
+
+int dataset_unmountall(dataset_list_ptr dataset, int flags) {
+	return zfs_unmountall(dataset->zh, flags);
+}
+
+const char *dataset_get_name(dataset_list_ptr ds) {
+	return zfs_get_name(ds->zh);
+}
+
+//int read_dataset_property(zfs_handle_t *zh, property_list_t *list, int prop) {
+property_list_t *read_dataset_property(dataset_list_t *dataset, int prop) {
 	int r = 0;
 	zprop_source_t source;
 	char statbuf[INT_MAX_VALUE];
+	property_list_ptr list;
+	list = new_property_list();
 
-	r = zfs_prop_get(zh, prop,
+	r = zfs_prop_get(dataset->zh, prop,
 		list->value, INT_MAX_VALUE, &source, statbuf, INT_MAX_VALUE, 1);
 	if (r == 0) {
 		// strcpy(list->name, zpool_prop_to_name(prop));
 		zprop_source_tostr(list->source, source);
+		list->property = (int)prop;
+	} else {
+		free_properties(list);
+		list = NULL;
 	}
-	list->property = (int)prop;
-	return r;
+	return list;
 }
 
-int read_user_property(zfs_handle_t *zh, property_list_t *list, const char *prop) {
-	nvlist_t *user_props = zfs_get_user_props(zh);
+// int read_user_property(zfs_handle_t *zh, property_list_t *list, const char *prop) {
+property_list_t *read_user_property(dataset_list_t *dataset, const char* prop) {
+	nvlist_t *user_props = zfs_get_user_props(dataset->zh);
 	nvlist_t *propval;
 	zprop_source_t sourcetype;
 	char *strval;
 	char *sourceval;
 	// char source[ZFS_MAX_DATASET_NAME_LEN];
+	property_list_ptr list = new_property_list();
 	
 	if (nvlist_lookup_nvlist(user_props,
 		prop, &propval) != 0) {
@@ -113,7 +199,7 @@ int read_user_property(zfs_handle_t *zh, property_list_t *list, const char *prop
 			ZPROP_SOURCE, &sourceval) == 0);
 
 		if (strcmp(sourceval,
-			zfs_get_name(zh)) == 0) {
+			zfs_get_name(dataset->zh)) == 0) {
 			sourcetype = ZPROP_SRC_LOCAL;
 			(void) strncpy(list->source,
 				"local", sizeof (list->source));
@@ -130,12 +216,7 @@ int read_user_property(zfs_handle_t *zh, property_list_t *list, const char *prop
 	}
 	(void) strncpy(list->value,
 				strval, sizeof (list->value));
-	return 0;
-}
-
-int clear_last_error(libzfs_handle_t *hdl) {
-	zfs_standard_error(hdl, EZFS_SUCCESS, "success");
-	return 0;
+	return list;
 }
 
 char** alloc_cstrings(int size) {

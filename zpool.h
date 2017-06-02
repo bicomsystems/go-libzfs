@@ -5,71 +5,67 @@
 #ifndef SERVERWARE_ZPOOL_H
 #define SERVERWARE_ZPOOL_H
 
-#define INT_MAX_NAME 256
-#define INT_MAX_VALUE 1024
-#define	ZAP_OLDMAXVALUELEN 1024
-#define	ZFS_MAX_DATASET_NAME_LEN 256
-
 struct zpool_list {
 	zpool_handle_t *zph;
 	void *pnext;
 };
 
-typedef struct property_list {
-	char value[INT_MAX_VALUE];
-	char source[ZFS_MAX_DATASET_NAME_LEN];
-	int property;
-	void *pnext;
-} property_list_t;
+struct vdev_children {
+	nvlist_t **first;
+	uint_t count;
+};
 
 typedef struct zpool_list zpool_list_t;
 typedef struct zpool_list* zpool_list_ptr;
-typedef struct libzfs_handle* libzfs_handle_ptr;
-typedef struct nvlist* nvlist_ptr;
-typedef struct property_list *property_list_ptr;
+typedef struct vdev_children vdev_children_t;
+typedef struct vdev_children* vdev_children_ptr;
+
 typedef struct pool_scan_stat* pool_scan_stat_ptr;
-typedef struct nvpair* nvpair_ptr;
-
-typedef struct vdev_stat* vdev_stat_ptr;
-typedef char* char_ptr;
-
-property_list_t *new_property_list();
 
 zpool_list_t *create_zpool_list_item();
 void zprop_source_tostr(char *dst, zprop_source_t source);
 
-zpool_list_t* zpool_list_open(libzfs_handle_t *libzfs, const char *name);
-int zpool_list(libzfs_handle_t *libzfs, zpool_list_t **first);
+zpool_list_t* zpool_list_open(const char *name);
+zpool_list_ptr zpool_list_openall();
 zpool_list_t *zpool_next(zpool_list_t *pool);
 
+void zpool_list_free(zpool_list_t *list);
 void zpool_list_close(zpool_list_t *pool);
 
-int read_zpool_property(zpool_handle_t *zh, property_list_t *list, int prop);
-property_list_t *read_zpool_properties(zpool_handle_t *zh);
+property_list_ptr read_zpool_property(zpool_list_ptr pool, int prop);
+property_list_t *read_zpool_properties(zpool_list_ptr pool);
 property_list_t *next_property(property_list_t *list);
-void free_properties(property_list_t *root);
 
 pool_state_t zpool_read_state(zpool_handle_t *zh);
 
 
 const char *lasterr(void);
 
-int
-add_prop_list(const char *propname, char *propval, nvlist_t **props,
-    boolean_t poolprop);
+// int
+// add_prop_list(const char *propname, char *propval, nvlist_t **props,
+//     boolean_t poolprop);
 
 nvlist_t** nvlist_alloc_array(int count);
 void nvlist_array_set(nvlist_t** a, int i, nvlist_t *item);
 void nvlist_free_array(nvlist_t **a);
 nvlist_t *nvlist_array_at(nvlist_t **a, uint_t i);
 
-int nvlist_lookup_uint64_array_vds(nvlist_t *nv, const char *p,
-	vdev_stat_t **vds, uint_t *c);
-
-int nvlist_lookup_uint64_array_ps(nvlist_t *nv, const char *p,
-	pool_scan_stat_t **vds, uint_t *c);
-
 int refresh_stats(zpool_list_t *pool);
+
+const char *get_vdev_type(nvlist_ptr nv);
+const vdev_stat_ptr get_vdev_stats(nvlist_ptr nv);
+pool_scan_stat_ptr get_vdev_scan_stats(nvlist_t *nv);
+vdev_children_ptr get_vdev_children(nvlist_t *nv);
+const char *get_vdev_path(nvlist_ptr nv);
+uint64_t get_vdev_is_log(nvlist_ptr nv);
+
+uint64_t get_zpool_state(nvlist_ptr nv);
+uint64_t get_zpool_guid(nvlist_ptr nv);
+const char *get_zpool_name(nvlist_ptr nv);
+const char *get_zpool_comment(nvlist_ptr nv);
+
+nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv);
+
 
 char *sZPOOL_CONFIG_VERSION;
 char *sZPOOL_CONFIG_POOL_NAME;
