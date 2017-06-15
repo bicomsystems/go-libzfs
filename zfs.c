@@ -160,16 +160,16 @@ property_list_t *read_dataset_property(dataset_list_t *dataset, int prop) {
 	int r = 0;
 	zprop_source_t source;
 	char statbuf[INT_MAX_VALUE];
-	property_list_ptr list;
+	property_list_ptr list = NULL;
 	list = new_property_list();
 
 	r = zfs_prop_get(dataset->zh, prop,
 		list->value, INT_MAX_VALUE, &source, statbuf, INT_MAX_VALUE, 1);
-	if (r == 0) {
+	if (r == 0 && list != NULL) {
 		// strcpy(list->name, zpool_prop_to_name(prop));
 		zprop_source_tostr(list->source, source);
 		list->property = (int)prop;
-	} else {
+	} else if (list != NULL) {
 		free_properties(list);
 		list = NULL;
 	}
@@ -226,3 +226,26 @@ char** alloc_cstrings(int size) {
 void strings_setat(char **a, int at, char *v) {
 	a[at] = v;
 }
+
+
+sendflags_t *alloc_sendflags() {
+	sendflags_t *r = malloc(sizeof(sendflags_t));
+	memset(r, 0, sizeof(sendflags_t));
+	return r;
+}
+recvflags_t *alloc_recvflags() {
+	recvflags_t *r = malloc(sizeof(recvflags_t));
+	memset(r, 0, sizeof(recvflags_t));
+	return r;
+}
+
+struct zfs_cmd *new_zfs_cmd(){
+	struct zfs_cmd *cmd = malloc(sizeof(struct zfs_cmd));
+	memset(cmd, 0, sizeof(struct zfs_cmd));
+	return cmd;
+}
+
+int estimate_send_size(struct zfs_cmd *zc) {
+	return zfs_ioctl(libzfsHandle, ZFS_IOC_SEND, zc);
+}
+

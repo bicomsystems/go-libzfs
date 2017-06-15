@@ -22,6 +22,7 @@ import "C"
 
 import (
 	"errors"
+	"sync"
 )
 
 // VDevType type of device in the pool
@@ -66,6 +67,10 @@ type VDevAux uint64
 type Property struct {
 	Value  string
 	Source string
+}
+
+var Global struct {
+	Mtx sync.Mutex
 }
 
 // Pool status

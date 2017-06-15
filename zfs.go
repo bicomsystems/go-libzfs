@@ -107,7 +107,7 @@ func DatasetOpen(path string) (d Dataset, err error) {
 		if err == nil {
 			err = fmt.Errorf("dataset not found.")
 		}
-		println("open failed")
+		err = fmt.Errorf("%s - %s", err.Error(), path)
 		return
 	}
 	d.Type = DatasetType(C.dataset_type(d.list))
