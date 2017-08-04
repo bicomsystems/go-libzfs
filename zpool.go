@@ -909,6 +909,10 @@ func (pool *Pool) Export(force bool, log string) (err error) {
 	}
 	csLog := C.CString(log)
 	defer C.free(unsafe.Pointer(csLog))
+	if rc := C.zpool_disable_datasets(pool.list.zph, forcet); rc != 0 {
+		err = LastError()
+		return
+	}
 	if rc := C.zpool_export(pool.list.zph, forcet, csLog); rc != 0 {
 		err = LastError()
 	}
