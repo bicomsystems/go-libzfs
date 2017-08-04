@@ -246,7 +246,7 @@ func (d *Dataset) SendSize(FromName string, flags SendFlags) (size uint64, err e
 	return
 }
 
-func (d *Dataset) Receive(name string, inf *os.File, flags RecvFlags) (err error) {
+func (d *Dataset) Receive(inf *os.File, flags RecvFlags) (err error) {
 	var dpath string
 	if dpath, err = d.Path(); err != nil {
 		return
@@ -259,7 +259,7 @@ func (d *Dataset) Receive(name string, inf *os.File, flags RecvFlags) (err error
 	defer C.nvlist_free(props)
 	cflags := to_recvflags_t(&flags)
 	defer C.free(unsafe.Pointer(cflags))
-	dest := C.CString(dpath + "/" + name)
+	dest := C.CString(dpath)
 	defer C.free(unsafe.Pointer(dest))
 	ec := C.zfs_receive(C.libzfsHandle, dest, cflags, C.int(inf.Fd()), nil)
 	if ec != 0 {

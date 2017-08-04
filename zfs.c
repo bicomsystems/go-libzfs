@@ -19,8 +19,13 @@ dataset_list_t *create_dataset_list_item() {
 }
 
 void dataset_list_close(dataset_list_t *list) {
-	zfs_close(list->zh);
-	free(list);
+	if (list != NULL) {
+		if (list->zh != NULL) {
+			zfs_close(list->zh);
+			list->zh = NULL;
+		}
+		free(list);
+	}
 	// dataset_list_free(list);
 }
 
@@ -132,15 +137,20 @@ int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t rec
 }
 
 const char *dataset_is_mounted(dataset_list_ptr dataset){
-	char *mp;
+	char *mp = NULL;
+	// zfs_is_mounted returns B_TRUE or B_FALSE
 	if (0 != zfs_is_mounted(dataset->zh, &mp)) {
-		return NULL;
+		return mp;
 	}
-	return mp;
+	return NULL;
 }
 
 int dataset_mount(dataset_list_ptr dataset, const char *options, int flags) {
-	return zfs_mount(dataset->zh, options, flags);
+	if ( 0 < strlen(options)) {
+		return zfs_mount(dataset->zh, options, flags);
+	} else {
+		return zfs_mount(dataset->zh, NULL, flags);
+	}
 }
 
 int dataset_unmount(dataset_list_ptr dataset, int flags) {

@@ -10,6 +10,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"unsafe"
 )
 
@@ -114,7 +115,6 @@ func DatasetOpen(path string) (d Dataset, err error) {
 	d.Properties = make(map[Prop]Property)
 	err = d.ReloadProperties()
 	if err != nil {
-		println("reload properties failed")
 		return
 	}
 	err = d.openChildren()
@@ -165,10 +165,9 @@ func DatasetCreate(path string, dtype DatasetType,
 // Close close dataset and all its recursive children datasets (close handle
 // and cleanup dataset object/s from memory)
 func (d *Dataset) Close() {
-	if d.list != nil && d.list.zh != nil {
-		C.dataset_list_close(d.list)
-		d.list = nil
-	}
+	// path, _ := d.Path()
+	C.dataset_list_close(d.list)
+	d.list = nil
 	for _, cd := range d.Children {
 		cd.Close()
 	}
@@ -204,18 +203,51 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 
 // DestroyRecursive recursively destroy children of dataset and dataset.
 func (d *Dataset) DestroyRecursive() (err error) {
-	if len(d.Children) > 0 {
-		for _, c := range d.Children {
-			if err = c.DestroyRecursive(); err != nil {
-				return
-			}
-			// close handle to destroyed child dataset
-			c.Close()
-		}
-		// clear closed children array
-		d.Children = make([]Dataset, 0)
+	var path string
+	if path, err = d.Path(); err != nil {
+		return
 	}
-	err = d.Destroy(false)
+	if !strings.Contains(path, "@") { // not snapshot
+		if len(d.Children) > 0 {
+			for _, c := range d.Children {
+				if err = c.DestroyRecursive(); err != nil {
+					return
+				}
+				// close handle to destroyed child dataset
+				c.Close()
+			}
+			// clear closed children array
+			d.Children = make([]Dataset, 0)
+		}
+		err = d.Destroy(false)
+	} else {
+		var parent Dataset
+		tmp := strings.Split(path, "@")
+		ppath, snapname := tmp[0], tmp[1]
+		if parent, err = DatasetOpen(ppath); err != nil {
+			return
+		}
+		defer parent.Close()
+		if len(parent.Children) > 0 {
+			for _, c := range parent.Children {
+				if path, err = c.Path(); err != nil {
+					return
+				}
+				if strings.Contains(path, "@") {
+					continue // skip other snapshots
+				}
+				if c, err = DatasetOpen(path + "@" + snapname); err != nil {
+					continue
+				}
+				if err = c.DestroyRecursive(); err != nil {
+					c.Close()
+					return
+				}
+				c.Close()
+			}
+		}
+		err = d.Destroy(false)
+	}
 	return
 }
 
@@ -241,6 +273,8 @@ func (d *Dataset) ReloadProperties() (err error) {
 		return
 	}
 	d.Properties = make(map[Prop]Property)
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
 		plist := C.read_dataset_property(d.list, C.int(prop))
 		if plist == nil {
@@ -434,6 +468,7 @@ func (d *Dataset) IsMounted() (mounted bool, where string) {
 	// defer C.free(mp)
 	if mounted = (mp != nil); mounted {
 		where = C.GoString(mp)
+		C.free(unsafe.Pointer(mp))
 	}
 	return
 }
@@ -471,10 +506,15 @@ func (d *Dataset) UnmountAll(flags int) (err error) {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	if ec := C.dataset_unmountall(d.list, C.int(flags)); ec != 0 {
-		err = LastError()
+	// This is implemented recursive because zfs_unmountall() didn't work
+	if len(d.Children) > 0 {
+		for _, c := range d.Children {
+			if err = c.UnmountAll(flags); err != nil {
+				return
+			}
+		}
 	}
-	return
+	return d.Unmount(flags)
 }
 
 // DatasetPropertyToName convert property to name
