@@ -17,17 +17,6 @@ typedef struct zfs_share {
 	uint64_t	z_sharemax;  /* max length of share string */
 } zfs_share_t;
 
-struct drr_begin {
-	uint64_t drr_magic;
-	uint64_t drr_versioninfo; /* was drr_version */
-	uint64_t drr_creation_time;
-	dmu_objset_type_t drr_type;
-	uint32_t drr_flags;
-	uint64_t drr_toguid;
-	uint64_t drr_fromguid;
-	char drr_toname[MAXNAMELEN];
-} drr_begin;
-
 /*
  * A limited number of zpl level stats are retrievable
  * with an ioctl.  zfs diff is the current consumer.
@@ -97,7 +86,6 @@ typedef struct zfs_cmd {
 	uint64_t	zc_iflags;		/* internal to zfs(7fs) */
 	zfs_share_t	zc_share;
 	dmu_objset_stats_t zc_objset_stats;
-	struct drr_begin zc_begin_record;
 	zinject_record_t zc_inject_record;
 	uint32_t	zc_defer_destroy;
 	uint32_t	zc_flags;

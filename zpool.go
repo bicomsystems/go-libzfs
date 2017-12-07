@@ -266,6 +266,9 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		}
 
 		ep.State = PoolState(C.get_zpool_state(config))
+		if ep.State != PoolStateExported {
+			continue
+		}
 
 		if cname = C.get_zpool_name(config); cname == nil {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_NAME)
@@ -351,8 +354,8 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 		}
 		name = C.GoString(cname)
 	}
-	if retcode := C.zpool_import(C.libzfsHandle, config, cname,
-		nil); retcode != 0 {
+	if retcode := C.zpool_import_props(C.libzfsHandle, config, cname,
+		nil, C.ZFS_IMPORT_NORMAL); retcode != 0 {
 		err = LastError()
 		return
 	}
