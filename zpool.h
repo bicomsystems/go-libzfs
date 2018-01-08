@@ -56,6 +56,8 @@ const char *get_vdev_type(nvlist_ptr nv);
 const vdev_stat_ptr get_vdev_stats(nvlist_ptr nv);
 pool_scan_stat_ptr get_vdev_scan_stats(nvlist_t *nv);
 vdev_children_ptr get_vdev_children(nvlist_t *nv);
+vdev_children_ptr get_vdev_spares(nvlist_t *nv);
+vdev_children_ptr get_vdev_l2cache(nvlist_t *nv);
 const char *get_vdev_path(nvlist_ptr nv);
 uint64_t get_vdev_is_log(nvlist_ptr nv);
 

@@ -84,6 +84,7 @@ func zpoolTestPoolCreate(t *testing.T) {
 
 	disks := [2]string{s1path, s2path}
 
+	var vdev zfs.VDevTree
 	var vdevs, mdevs, sdevs []zfs.VDevTree
 	for _, d := range disks {
 		mdevs = append(mdevs,
@@ -93,8 +94,9 @@ func zpoolTestPoolCreate(t *testing.T) {
 		{Type: zfs.VDevTypeFile, Path: s3path}}
 	vdevs = []zfs.VDevTree{
 		zfs.VDevTree{Type: zfs.VDevTypeMirror, Devices: mdevs},
-		zfs.VDevTree{Type: zfs.VDevTypeSpare, Devices: sdevs},
 	}
+	vdev.Devices = vdevs
+	vdev.Spares = sdevs
 
 	props := make(map[zfs.Prop]string)
 	fsprops := make(map[zfs.Prop]string)
@@ -104,7 +106,7 @@ func zpoolTestPoolCreate(t *testing.T) {
 	features["empty_bpobj"] = zfs.FENABLED
 	features["lz4_compress"] = zfs.FENABLED
 
-	pool, err := zfs.PoolCreate(TSTPoolName, vdevs, features, props, fsprops)
+	pool, err := zfs.PoolCreate(TSTPoolName, vdev, features, props, fsprops)
 	if err != nil {
 		t.Error(err)
 		// try cleanup
@@ -231,6 +233,19 @@ func printVDevTree(vt zfs.VDevTree, pref string) {
 	for _, v := range vt.Devices {
 		printVDevTree(v, "  "+pref)
 	}
+	if len(vt.Spares) > 0 {
+		fmt.Println("spares:")
+		for _, v := range vt.Spares {
+			printVDevTree(v, "  "+pref)
+		}
+	}
+
+	if len(vt.L2Cache) > 0 {
+		fmt.Println("l2cache:")
+		for _, v := range vt.L2Cache {
+			printVDevTree(v, "  "+pref)
+		}
+	}
 }
 
 func zpoolTestPoolImportSearch(t *testing.T) {
@@ -249,7 +264,6 @@ func zpoolTestPoolImportSearch(t *testing.T) {
 		fmt.Printf("%-30s | %-10s | %-10s | %s\n", "NAME", "TYPE", "STATE", "PATH")
 		println("---------------------------------------------------------------")
 		printVDevTree(p.VDevs, "")
-
 	}
 	print("PASS\n\n")
 }
@@ -408,6 +422,7 @@ func ExamplePoolOpenAll() {
 func ExamplePoolCreate() {
 	disks := [2]string{"/dev/disk/by-id/ATA-123", "/dev/disk/by-id/ATA-456"}
 
+	var vdev zfs.VDevTree
 	var vdevs, mdevs, sdevs []zfs.VDevTree
 
 	// build mirror devices specs
@@ -423,8 +438,10 @@ func ExamplePoolCreate() {
 	// pool specs
 	vdevs = []zfs.VDevTree{
 		zfs.VDevTree{Type: zfs.VDevTypeMirror, Devices: mdevs},
-		zfs.VDevTree{Type: zfs.VDevTypeSpare, Devices: sdevs},
 	}
+
+	vdev.Devices = vdevs
+	vdev.Spares = sdevs
 
 	// pool properties
 	props := make(map[zfs.Prop]string)
@@ -443,7 +460,7 @@ func ExamplePoolCreate() {
 
 	// Based on specs formed above create test pool as 2 disk mirror and
 	// one spare disk
-	pool, err := zfs.PoolCreate("TESTPOOL", vdevs, features, props, fsprops)
+	pool, err := zfs.PoolCreate("TESTPOOL", vdev, features, props, fsprops)
 	if err != nil {
 		println("Error: ", err.Error())
 		return

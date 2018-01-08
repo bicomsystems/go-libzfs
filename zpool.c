@@ -408,6 +408,30 @@ vdev_children_ptr get_vdev_children(nvlist_t *nv) {
 	return children;
 }
 
+vdev_children_ptr get_vdev_spares(nvlist_t *nv) {
+	int r;
+	vdev_children_ptr children = malloc(sizeof(vdev_children_t));
+	memset(children, 0, sizeof(vdev_children_t));
+	r = nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_SPARES, &(children->first), &(children->count));
+	if (r != 0) {
+		free(children);
+		return NULL;
+	}
+	return children;
+}
+
+vdev_children_ptr get_vdev_l2cache(nvlist_t *nv) {
+	int r;
+	vdev_children_ptr children = malloc(sizeof(vdev_children_t));
+	memset(children, 0, sizeof(vdev_children_t));
+	r = nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_L2CACHE, &(children->first), &(children->count));
+	if (r != 0) {
+		free(children);
+		return NULL;
+	}
+	return children;
+}
+
 const char *get_vdev_path(nvlist_ptr nv) {
 	char *path = NULL;
 	uint64_t notpresent = 0;

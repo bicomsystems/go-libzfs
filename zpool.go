@@ -101,6 +101,9 @@ type PoolScanStat struct {
 type VDevTree struct {
 	Type     VDevType
 	Devices  []VDevTree // groups other devices (e.g. mirror)
+	Spares   []VDevTree
+	L2Cache  []VDevTree
+	Logs     []VDevTree
 	Parity   uint
 	Path     string
 	Name     string
@@ -232,6 +235,60 @@ func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
 			return
 		}
 		vdevs.Devices = append(vdevs.Devices, vdev)
+	}
+	if vdevs.Spares, err = poolGetSpares(name, nv); err != nil {
+		return
+	}
+	if vdevs.L2Cache, err = poolGetL2Cache(name, nv); err != nil {
+		return
+	}
+	return
+}
+
+func poolGetSpares(name string, nv C.nvlist_ptr) (vdevs []VDevTree, err error) {
+	// Fetch the spares
+	var spares C.vdev_children_ptr
+	spares = C.get_vdev_spares(nv)
+	if spares != nil {
+		// this object that reference spares and count should be deallocated from memory
+		defer C.free(unsafe.Pointer(spares))
+		vdevs = make([]VDevTree, 0, spares.count)
+	}
+	for c := C.uint_t(0); spares != nil && c < spares.count; c++ {
+		vname := C.zpool_vdev_name(C.libzfsHandle, nil, C.nvlist_array_at(spares.first, c),
+			C.B_TRUE)
+		var vdev VDevTree
+		vdev, err = poolGetConfig(C.GoString(vname),
+			C.nvlist_array_at(spares.first, c))
+		C.free(unsafe.Pointer(vname))
+		if err != nil {
+			return
+		}
+		vdevs = append(vdevs, vdev)
+	}
+	return
+}
+
+func poolGetL2Cache(name string, nv C.nvlist_ptr) (vdevs []VDevTree, err error) {
+	// Fetch the spares
+	var l2cache C.vdev_children_ptr
+	l2cache = C.get_vdev_l2cache(nv)
+	if l2cache != nil {
+		// this object that reference l2cache and count should be deallocated from memory
+		defer C.free(unsafe.Pointer(l2cache))
+		vdevs = make([]VDevTree, 0, l2cache.count)
+	}
+	for c := C.uint_t(0); l2cache != nil && c < l2cache.count; c++ {
+		vname := C.zpool_vdev_name(C.libzfsHandle, nil, C.nvlist_array_at(l2cache.first, c),
+			C.B_TRUE)
+		var vdev VDevTree
+		vdev, err = poolGetConfig(C.GoString(vname),
+			C.nvlist_array_at(l2cache.first, c))
+		C.free(unsafe.Pointer(vname))
+		if err != nil {
+			return
+		}
+		vdevs = append(vdevs, vdev)
 	}
 	return
 }
@@ -651,7 +708,52 @@ func toCDatasetProperties(props DatasetProperties) (cprops C.nvlist_ptr) {
 	return
 }
 
-func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
+func buildVdev(vdev VDevTree, ashift int) (nvvdev *C.struct_nvlist, err error) {
+	if r := C.nvlist_alloc(&nvvdev, C.NV_UNIQUE_NAME, 0); r != 0 {
+		err = errors.New("Failed to allocate vdev")
+		return
+	}
+	csType := C.CString(string(vdev.Type))
+	r := C.nvlist_add_string(nvvdev, C.sZPOOL_CONFIG_TYPE,
+		csType)
+	C.free(unsafe.Pointer(csType))
+	if r != 0 {
+		err = errors.New("Failed to set vdev type")
+		return
+	}
+	if r := C.nvlist_add_uint64(nvvdev, C.sZPOOL_CONFIG_IS_LOG,
+		vdev.isLog()); r != 0 {
+		err = errors.New("Failed to allocate vdev (is_log)")
+		return
+	}
+	if r := C.nvlist_add_uint64(nvvdev,
+		C.sZPOOL_CONFIG_WHOLE_DISK, 1); r != 0 {
+		err = errors.New("Failed to allocate vdev nvvdev (whdisk)")
+		return
+	}
+	if len(vdev.Path) > 0 {
+		csPath := C.CString(vdev.Path)
+		r := C.nvlist_add_string(
+			nvvdev, C.sZPOOL_CONFIG_PATH,
+			csPath)
+		C.free(unsafe.Pointer(csPath))
+		if r != 0 {
+			err = errors.New("Failed to allocate vdev nvvdev (type)")
+			return
+		}
+		if ashift > 0 {
+			if r := C.nvlist_add_uint64(nvvdev,
+				C.sZPOOL_CONFIG_ASHIFT,
+				C.uint64_t(ashift)); r != 0 {
+				err = errors.New("Failed to allocate vdev nvvdev (ashift)")
+				return
+			}
+		}
+	}
+	return
+}
+
+func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs, spares, l2cache []VDevTree,
 	props PoolProperties) (err error) {
 	count := len(vdevs)
 	if count == 0 {
@@ -663,28 +765,9 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 		return
 	}
 	defer C.nvlist_free_array(childrens)
-	spares := C.nvlist_alloc_array(C.int(count))
-	if childrens == nil {
-		err = errors.New("No enough memory")
-		return
-	}
-	nspares := 0
-	defer C.nvlist_free_array(spares)
-	l2cache := C.nvlist_alloc_array(C.int(count))
-	if childrens == nil {
-		err = errors.New("No enough memory")
-		return
-	}
-	nl2cache := 0
-	defer C.nvlist_free_array(l2cache)
 	for i, vdev := range vdevs {
 		grouping, mindevs, maxdevs := vdev.isGrouping()
 		var child *C.struct_nvlist
-		// fmt.Println(vdev.Type)
-		if r := C.nvlist_alloc(&child, C.NV_UNIQUE_NAME, 0); r != 0 {
-			err = errors.New("Failed to allocate vdev")
-			return
-		}
 		vcount := len(vdev.Devices)
 		if vcount < mindevs || vcount > maxdevs {
 			err = fmt.Errorf(
@@ -692,20 +775,19 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 				vdev.Type, mindevs, maxdevs)
 			return
 		}
-		csType := C.CString(string(vdev.Type))
-		r := C.nvlist_add_string(child, C.sZPOOL_CONFIG_TYPE,
-			csType)
-		C.free(unsafe.Pointer(csType))
-		if r != 0 {
-			err = errors.New("Failed to set vdev type")
-			return
-		}
-		if r := C.nvlist_add_uint64(child, C.sZPOOL_CONFIG_IS_LOG,
-			vdev.isLog()); r != 0 {
-			err = errors.New("Failed to allocate vdev (is_log)")
-			return
-		}
 		if grouping {
+			if r := C.nvlist_alloc(&child, C.NV_UNIQUE_NAME, 0); r != 0 {
+				err = errors.New("Failed to allocate vdev")
+				return
+			}
+			csType := C.CString(string(vdev.Type))
+			r := C.nvlist_add_string(child, C.sZPOOL_CONFIG_TYPE,
+				csType)
+			C.free(unsafe.Pointer(csType))
+			if r != 0 {
+				err = errors.New("Failed to set vdev type")
+				return
+			}
 			if vdev.Type == VDevTypeRaidz {
 				r := C.nvlist_add_uint64(child,
 					C.sZPOOL_CONFIG_NPARITY,
@@ -715,48 +797,14 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 					return
 				}
 			}
-			if err = buildVDevTree(child, vdev.Type, vdev.Devices,
+			if err = buildVDevTree(child, vdev.Type, vdev.Devices, nil, nil,
 				props); err != nil {
 				return
 			}
 		} else {
-			// if vdev.Type == VDevTypeDisk {
-			if r := C.nvlist_add_uint64(child,
-				C.sZPOOL_CONFIG_WHOLE_DISK, 1); r != 0 {
-				err = errors.New("Failed to allocate vdev child (whdisk)")
+			ashift, _ := strconv.Atoi(props[PoolPropAshift])
+			if child, err = buildVdev(vdev, ashift); err != nil {
 				return
-			}
-			// }
-			if len(vdev.Path) > 0 {
-				csPath := C.CString(vdev.Path)
-				r := C.nvlist_add_string(
-					child, C.sZPOOL_CONFIG_PATH,
-					csPath)
-				C.free(unsafe.Pointer(csPath))
-				if r != 0 {
-					err = errors.New("Failed to allocate vdev child (type)")
-					return
-				}
-				ashift, _ := strconv.Atoi(props[PoolPropAshift])
-				if ashift > 0 {
-					if r := C.nvlist_add_uint64(child,
-						C.sZPOOL_CONFIG_ASHIFT,
-						C.uint64_t(ashift)); r != 0 {
-						err = errors.New("Failed to allocate vdev child (ashift)")
-						return
-					}
-				}
-			}
-			if vdev.Type == VDevTypeSpare {
-				C.nvlist_array_set(spares, C.int(nspares), child)
-				nspares++
-				count--
-				continue
-			} else if vdev.Type == VDevTypeL2cache {
-				C.nvlist_array_set(l2cache, C.int(nl2cache), child)
-				nl2cache++
-				count--
-				continue
 			}
 		}
 		C.nvlist_array_set(childrens, C.int(i), child)
@@ -768,31 +816,74 @@ func buildVDevTree(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree,
 			err = errors.New("Failed to allocate vdev children")
 			return
 		}
-		// fmt.Println("childs", root, count, rtype)
-		// debug.PrintStack()
 	}
-	if nl2cache > 0 {
-		if r := C.nvlist_add_nvlist_array(root,
-			C.sZPOOL_CONFIG_L2CACHE, l2cache,
-			C.uint_t(nl2cache)); r != 0 {
-			err = errors.New("Failed to allocate vdev cache")
+	if len(spares) > 0 {
+		ashift, _ := strconv.Atoi(props[PoolPropAshift])
+		if err = buildVdevSpares(root, VDevTypeRoot, spares, ashift); err != nil {
 			return
 		}
 	}
-	if nspares > 0 {
-		if r := C.nvlist_add_nvlist_array(root,
-			C.sZPOOL_CONFIG_SPARES, spares,
-			C.uint_t(nspares)); r != 0 {
-			err = errors.New("Failed to allocate vdev spare")
+	if len(l2cache) > 0 {
+		ashift, _ := strconv.Atoi(props[PoolPropAshift])
+		if err = buildVdevL2Cache(root, VDevTypeRoot, l2cache, ashift); err != nil {
 			return
 		}
-		// fmt.Println("spares", root, count)
+	}
+	return
+}
+
+func buildVdevSpares(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree, ashift int) (err error) {
+	count := len(vdevs)
+	if count == 0 {
+		return
+	}
+	spares := C.nvlist_alloc_array(C.int(count))
+	if spares == nil {
+		err = errors.New("No enough memory buildVdevSpares")
+		return
+	}
+	defer C.nvlist_free_array(spares)
+	for i, vdev := range vdevs {
+		var child *C.struct_nvlist
+		if child, err = buildVdev(vdev, ashift); err != nil {
+			return
+		}
+		C.nvlist_array_set(spares, C.int(i), child)
+	}
+	if r := C.nvlist_add_nvlist_array(root,
+		C.sZPOOL_CONFIG_SPARES, spares, C.uint_t(len(vdevs))); r != 0 {
+		err = errors.New("Failed to allocate vdev spare")
+	}
+	return
+}
+
+func buildVdevL2Cache(root *C.nvlist_t, rtype VDevType, vdevs []VDevTree, ashift int) (err error) {
+	count := len(vdevs)
+	if count == 0 {
+		return
+	}
+	l2cache := C.nvlist_alloc_array(C.int(count))
+	if l2cache == nil {
+		err = errors.New("No enough memory buildVdevL2Cache")
+		return
+	}
+	defer C.nvlist_free_array(l2cache)
+	for i, vdev := range vdevs {
+		var child *C.struct_nvlist
+		if child, err = buildVdev(vdev, ashift); err != nil {
+			return
+		}
+		C.nvlist_array_set(l2cache, C.int(i), child)
+	}
+	if r := C.nvlist_add_nvlist_array(root,
+		C.sZPOOL_CONFIG_SPARES, l2cache, C.uint_t(len(vdevs))); r != 0 {
+		err = errors.New("Failed to allocate vdev l2cache")
 	}
 	return
 }
 
 // PoolCreate create ZFS pool per specs, features and properties of pool and root dataset
-func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
+func PoolCreate(name string, vdev VDevTree, features map[string]string,
 	props PoolProperties, fsprops DatasetProperties) (pool Pool, err error) {
 	// create root vdev nvroot
 	var nvroot *C.struct_nvlist
@@ -811,7 +902,7 @@ func PoolCreate(name string, vdevs []VDevTree, features map[string]string,
 	defer C.nvlist_free(nvroot)
 
 	// Now we need to build specs (vdev hierarchy)
-	if err = buildVDevTree(nvroot, VDevTypeRoot, vdevs, props); err != nil {
+	if err = buildVDevTree(nvroot, VDevTypeRoot, vdev.Devices, vdev.Spares, vdev.L2Cache, props); err != nil {
 		return
 	}
 
@@ -948,7 +1039,12 @@ func (pool *Pool) VDevTree() (vdevs VDevTree, err error) {
 	if poolName, err = pool.Name(); err != nil {
 		return
 	}
-	return poolGetConfig(poolName, nvroot)
+	if vdevs, err = poolGetConfig(poolName, nvroot); err != nil {
+		return
+	}
+	vdevs.Spares, err = poolGetSpares(poolName, nvroot)
+	vdevs.L2Cache, err = poolGetL2Cache(poolName, nvroot)
+	return
 }
 
 func (s PoolState) String() string {
