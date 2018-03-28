@@ -103,7 +103,7 @@ type VDevTree struct {
 	Devices  []VDevTree // groups other devices (e.g. mirror)
 	Spares   []VDevTree
 	L2Cache  []VDevTree
-	Logs     []VDevTree
+	Logs     *VDevTree
 	Parity   uint
 	Path     string
 	Name     string
@@ -222,9 +222,7 @@ func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
 		var islog = C.uint64_t(C.B_FALSE)
 
 		islog = C.get_vdev_is_log(C.nvlist_array_at(children.first, c))
-		if islog != C.B_FALSE {
-			continue
-		}
+
 		vname := C.zpool_vdev_name(C.libzfsHandle, nil, C.nvlist_array_at(children.first, c),
 			C.B_TRUE)
 		var vdev VDevTree
@@ -234,13 +232,11 @@ func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
 		if err != nil {
 			return
 		}
-		vdevs.Devices = append(vdevs.Devices, vdev)
-	}
-	if vdevs.Spares, err = poolGetSpares(name, nv); err != nil {
-		return
-	}
-	if vdevs.L2Cache, err = poolGetL2Cache(name, nv); err != nil {
-		return
+		if islog != C.B_FALSE {
+			vdevs.Logs = &vdev
+		} else {
+			vdevs.Devices = append(vdevs.Devices, vdev)
+		}
 	}
 	return
 }

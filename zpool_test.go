@@ -1,6 +1,7 @@
 package zfs_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -528,4 +529,35 @@ func ExamplePool_State() {
 		panic(err)
 	}
 	println("POOL TESTPOOL state:", zfs.PoolStateToName(pstate))
+}
+
+func TestPool_VDevTree(t *testing.T) {
+	type fields struct {
+		poolName string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+		{
+			name:    "test1",
+			fields:  fields{"NETSTOR"},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pool, _ := zfs.PoolOpen(tt.fields.poolName)
+			defer pool.Close()
+			gotVdevs, err := pool.VDevTree()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Pool.VDevTree() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			jsonData, _ := json.MarshalIndent(gotVdevs, "", "\t")
+			t.Logf("gotVdevs: %s", string(jsonData))
+		})
+	}
 }
