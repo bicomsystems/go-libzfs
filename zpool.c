@@ -487,3 +487,13 @@ nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv) {
 	}
 	return vdev_tree;
 }
+
+
+nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan) {
+	importargs_t idata = { 0 };
+	idata.path = path;
+	idata.paths = paths;
+	// idata.scan = 0;
+
+	return zpool_search_import(zfsh, &idata);
+}

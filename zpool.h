@@ -68,6 +68,8 @@ const char *get_zpool_comment(nvlist_ptr nv);
 
 nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv);
 
+nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan);
+
 
 extern char *sZPOOL_CONFIG_VERSION;
 extern char *sZPOOL_CONFIG_POOL_NAME;

@@ -307,7 +307,7 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		C.strings_setat(cpaths, C.int(i), csPath)
 	}
 
-	pools := C.zpool_find_import(C.libzfsHandle, C.int(numofp), cpaths)
+	pools := C.go_zpool_search_import(C.libzfsHandle, C.int(numofp), cpaths, C.B_FALSE)
 	defer C.nvlist_free(pools)
 	elem = C.nvlist_next_nvpair(pools, elem)
 	epools = make([]ExportedPool, 0, 1)
@@ -319,9 +319,6 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		}
 
 		ep.State = PoolState(C.get_zpool_state(config))
-		if ep.State != PoolStateExported {
-			continue
-		}
 
 		if cname = C.get_zpool_name(config); cname == nil {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_NAME)
