@@ -274,9 +274,9 @@ func zpoolTestPoolProp(t *testing.T) {
 	if pool, err := zfs.PoolOpen(TSTPoolName); err == nil {
 		defer pool.Close()
 		// Turn on snapshot listing for pool
-		pool.SetProperty(zfs.PoolPropListsnaps, "on")
+		pool.SetProperty(zfs.PoolPropListsnaps, "off")
 		// Verify change is succesfull
-		if pool.Properties[zfs.PoolPropListsnaps].Value != "on" {
+		if pool.Properties[zfs.PoolPropListsnaps].Value != "off" {
 			t.Error(fmt.Errorf("Update of pool property failed"))
 			return
 		}

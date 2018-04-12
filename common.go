@@ -246,6 +246,10 @@ const (
 	DatasetPropLogicalused
 	DatasetPropLogicalreferenced
 	DatasetPropInconsistent /* not exposed to the user */
+	DatasetPropFilesystemLimit
+	DatasetPropSnapshotLimit
+	DatasetPropFilesystemCount
+	DatasetPropSnapshotCount
 	DatasetPropSnapdev
 	DatasetPropAcltype
 	DatasetPropSelinuxContext

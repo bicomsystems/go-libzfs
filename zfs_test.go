@@ -93,6 +93,32 @@ func zfsTestDatasetOpen(t *testing.T) {
 	print("PASS\n\n")
 }
 
+func zfsTestDatasetSetProperty(t *testing.T) {
+	println("TEST Dataset SetProp(", TSTDatasetPath, ") ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer d.Close()
+	if err = d.SetProperty(zfs.DatasetPropOverlay, "on"); err != nil {
+		t.Error(err)
+		return
+	}
+	if prop, err := d.GetProperty(zfs.DatasetPropOverlay); err != nil {
+		t.Error(err)
+		return
+	} else {
+		println(prop.Value)
+		if prop.Value != "on" {
+			t.Error(fmt.Errorf("Update of dataset property failed"))
+			return
+		}
+	}
+	print("PASS\n\n")
+	return
+}
+
 func zfsTestDatasetOpenAll(t *testing.T) {
 	println("TEST DatasetOpenAll()/DatasetCloseAll() ... ")
 	ds, err := zfs.DatasetOpenAll()
