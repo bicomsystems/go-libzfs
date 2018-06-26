@@ -5,6 +5,15 @@
 #ifndef SERVERWARE_ZPOOL_H
 #define SERVERWARE_ZPOOL_H
 
+/* Rewind request information */
+#define	ZPOOL_NO_REWIND		1  /* No policy - default behavior */
+#define	ZPOOL_NEVER_REWIND	2  /* Do not search for best txg or rewind */
+#define	ZPOOL_TRY_REWIND	4  /* Search for best txg, but do not rewind */
+#define	ZPOOL_DO_REWIND		8  /* Rewind to best txg w/in deferred frees */
+#define	ZPOOL_EXTREME_REWIND	16 /* Allow extreme measures to find best txg */
+#define	ZPOOL_REWIND_MASK	28 /* All the possible rewind bits */
+#define	ZPOOL_REWIND_POLICIES	31 /* All the possible policy bits */
+
 struct zpool_list {
 	zpool_handle_t *zph;
 	void *pnext;
@@ -69,6 +78,10 @@ const char *get_zpool_comment(nvlist_ptr nv);
 nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv);
 
 nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan);
+
+__uint64_t set_zpool_vdev_online(zpool_list_t *pool, const char *path, int flags);
+int set_zpool_vdev_offline(zpool_list_t *pool, const char *path, boolean_t istmp, boolean_t force);
+int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t rewind_policy);
 
 
 extern char *sZPOOL_CONFIG_VERSION;

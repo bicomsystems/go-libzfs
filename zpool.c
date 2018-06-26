@@ -497,3 +497,19 @@ nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path
 
 	return zpool_search_import(zfsh, &idata);
 }
+
+
+int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t rewind_policy) {
+	nvlist_t *policy = NULL;
+	int ret = 0;
+	if (nvlist_alloc(&policy, NV_UNIQUE_NAME, 0) != 0 ||
+	    nvlist_add_uint32(policy, ZPOOL_REWIND_REQUEST, rewind_policy) != 0)
+		return (1);
+
+	if (zpool_clear(pool->zph, device, policy) != 0)
+		ret = 1;
+
+	nvlist_free(policy);
+
+	return (ret);
+}
