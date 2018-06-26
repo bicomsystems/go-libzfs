@@ -1085,3 +1085,83 @@ func (s VDevState) String() string {
 		return "UNKNOWN"
 	}
 }
+
+func (s PoolStatus) String() string {
+	switch s {
+	case PoolStatusCorruptCache:
+		return "CORRUPT_CACHE"
+	case PoolStatusMissingDevR:
+		return "MISSING_DEV_R" /* missing device with replicas */
+	case PoolStatusMissingDevNr: /* missing device with no replicas */
+		return "MISSING_DEV_NR"
+	case PoolStatusCorruptLabelR: /* bad device label with replicas */
+		return "CORRUPT_LABEL_R"
+	case PoolStatusCorruptLabelNr: /* bad device label with no replicas */
+		return "CORRUPT_LABEL_NR"
+	case PoolStatusBadGUIDSum: /* sum of device guids didn't match */
+		return "BAD_GUID_SUM"
+	case PoolStatusCorruptPool: /* pool metadata is corrupted */
+		return "CORRUPT_POOL"
+	case PoolStatusCorruptData: /* data errors in user (meta)data */
+		return "CORRUPT_DATA"
+	case PoolStatusFailingDev: /* device experiencing errors */
+		return "FAILLING_DEV"
+	case PoolStatusVersionNewer: /* newer on-disk version */
+		return "VERSION_NEWER"
+	case PoolStatusHostidMismatch: /* last accessed by another system */
+		return "HOSTID_MISMATCH"
+	case PoolStatusIoFailureWait: /* failed I/O, failmode 'wait' */
+		return "FAILURE_WAIT"
+	case PoolStatusIoFailureContinue: /* failed I/O, failmode 'continue' */
+		return "FAILURE_CONTINUE"
+	case PoolStatusBadLog: /* cannot read log chain(s) */
+		return "BAD_LOG"
+	case PoolStatusErrata: /* informational errata available */
+		return "ERRATA"
+
+	/*
+	 * If the pool has unsupported features but can still be opened in
+	 * read-only mode, its status is ZPOOL_STATUS_UNSUP_FEAT_WRITE. If the
+	 * pool has unsupported features but cannot be opened at all, its
+	 * status is ZPOOL_STATUS_UNSUP_FEAT_READ.
+	 */
+	case PoolStatusUnsupFeatRead: /* unsupported features for read */
+		return "UNSUP_FEAT_READ"
+	case PoolStatusUnsupFeatWrite: /* unsupported features for write */
+		return "UNSUP_FEAT_WRITE"
+
+	/*
+	* These faults have no corresponding message ID.  At the time we are
+	* checking the status, the original reason for the FMA fault (I/O or
+	* checksum errors) has been lost.
+	 */
+	case PoolStatusFaultedDevR: /* faulted device with replicas */
+		return "FAULTED_DEV_R"
+	case PoolStatusFaultedDevNr: /* faulted device with no replicas */
+		return "FAULTED_DEV_NR"
+
+	/*
+	* The following are not faults per se, but still an error possibly
+	* requiring administrative attention.  There is no corresponding
+	* message ID.
+	 */
+	case PoolStatusVersionOlder: /* older legacy on-disk version */
+		return "VERSION_OLDER"
+	case PoolStatusFeatDisabled: /* supported features are disabled */
+		return "FEAT_DISABLED"
+	case PoolStatusResilvering: /* device being resilvered */
+		return "RESILVERIN"
+	case PoolStatusOfflineDev: /* device online */
+		return "OFFLINE_DEV"
+	case PoolStatusRemovedDev: /* removed device */
+		return "REMOVED_DEV"
+
+		/*
+		 * Finally, the following indicates a healthy pool.
+		 */
+	case PoolStatusOk:
+		return "OK"
+	default:
+		return "OK"
+	}
+}
