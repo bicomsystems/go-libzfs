@@ -2,7 +2,7 @@
 
 **go-libzfs** currently implements basic manipulation of ZFS pools and data sets. Plan is to add more in further development, improve documentation with more examples, and add more tests. _go-libzfs_ use libzfs C library and does not wrap OpenZFS CLI tools. That way it ensure best performance. Per my personal opinion its more reliable way to do it, and that libzfs is less subject of possible changes then CLI tools.  Goal is to let easy using and manipulating OpenZFS form with in go, and tries to map libzfs C library in to go style package respecting golang common practice.
 
-[![GoDoc](https://godoc.org/github.com/fkasumovic/go-libzfs?status.svg)](https://godoc.org/github.com/fkasumovic/go-libzfs)
+[![GoDoc](https://godoc.org/github.com/bicomsystems/go-libzfs?status.svg)](https://godoc.org/github.com/bicomsystems/go-libzfs)
 
 ## Main features
 
@@ -21,14 +21,14 @@
 ## Installing
 
 ```sh
-go get github.com/fkasumovic/go-libzfs
+go get github.com/bicomsystems/go-libzfs
 ```
 
 ## Testing
 
 ```sh
 # On command line shell run
-cd $GOPATH/src/github.com/fkasumovic/go-libzfs
+cd $GOPATH/src/github.com/bicomsystems/go-libzfs
 go test
 ```
 
@@ -46,10 +46,10 @@ props := make(map[ZFSProp]Property)
 // similar to convert in to string (base 10) from numeric type.
 strSize := "1073741824"
 
-props[ZFSPropVolsize] = Property{Value: strSize}
+props[DatasetPropVolsize] = Property{Value: strSize}
 // In addition I explicitly choose some more properties to be set.
-props[ZFSPropVolblocksize] = Property{Value: "4096"}
-props[ZFSPropReservation] = Property{Value: strSize}
+props[DatasetPropVolblocksize] = Property{Value: "4096"}
+props[DatasetPropReservation] = Property{Value: strSize}
 
 // Lets create desired volume
 d, err := DatasetCreate("TESTPOOL/VOLUME1", DatasetTypeVolume, props)
