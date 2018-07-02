@@ -2,7 +2,11 @@
  * using libzfs from go language, and make go code shorter and more readable.
  */
 
+typedef unsigned long int rlim64_t;
+
 #include <libzfs.h>
+#include <libzfs/sys/zfs_context.h>
+
 #include <memory.h>
 #include <string.h>
 #include <stdio.h>
@@ -189,7 +193,7 @@ property_list_ptr read_zpool_property(zpool_list_ptr pool, int prop) {
 	property_list_ptr list = new_property_list();
 
 	r = zpool_get_prop(pool->zph, prop,
-		list->value, INT_MAX_VALUE, &source);
+		list->value, INT_MAX_VALUE, &source, B_FALSE);
 	if (r == 0) {
 		// strcpy(list->name, zpool_prop_to_name(prop));
 		zprop_source_tostr(list->source, source);
@@ -491,11 +495,15 @@ nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv) {
 
 nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan) {
 	importargs_t idata = { 0 };
+	nvlist_ptr pools = NULL;
 	idata.path = path;
 	idata.paths = paths;
 	// idata.scan = 0;
 
-	return zpool_search_import(zfsh, &idata);
+	thread_init();
+	pools = zpool_search_import(zfsh, &idata);
+	thread_fini();
+	return pools;
 }
 
 

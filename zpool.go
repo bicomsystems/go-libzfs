@@ -1,5 +1,6 @@
 package zfs
 
+// #cgo CFLAGS: -D__USE_LARGEFILE64=1
 // #include <stdlib.h>
 // #include <libzfs.h>
 // #include "common.h"
@@ -364,7 +365,7 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 		C.strings_setat(cpaths, C.int(i), csPath)
 	}
 
-	pools := C.zpool_find_import(C.libzfsHandle, C.int(numofp), cpaths)
+	pools := C.go_zpool_search_import(C.libzfsHandle, C.int(numofp), cpaths, C.B_FALSE)
 	defer C.nvlist_free(pools)
 
 	elem = C.nvlist_next_nvpair(pools, elem)
