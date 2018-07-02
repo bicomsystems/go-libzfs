@@ -543,7 +543,7 @@ func TestPool_VDevTree(t *testing.T) {
 		// TODO: Add test cases.
 		{
 			name:    "test1",
-			fields:  fields{"NETSTOR"},
+			fields:  fields{"TESTPOOL"},
 			wantErr: false,
 		},
 	}

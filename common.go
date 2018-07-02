@@ -144,7 +144,9 @@ const (
 // Pool properties. Enumerates available ZFS pool properties. Use it to access
 // pool properties either to read or set soecific property.
 const (
-	PoolPropName Prop = iota
+	PoolPropCont Prop = iota - 2
+	PoolPropInval
+	PoolPropName
 	PoolPropSize
 	PoolPropCapacity
 	PoolPropAltroot
@@ -171,6 +173,8 @@ const (
 	PoolPropLeaked
 	PoolPropMaxBlockSize
 	PoolPropTName
+	PoolPropMaxNodeSize
+	PoolPropMultiHost
 	PoolNumProps
 )
 
@@ -181,7 +185,9 @@ const (
  * the property table in module/zcommon/zfs_prop.c.
  */
 const (
-	DatasetPropType Prop = iota
+	DatasetPropCont Prop = iota - 2
+	DatasetPropBad
+	DatasetPropType
 	DatasetPropCreation
 	DatasetPropUsed
 	DatasetPropAvailable
@@ -207,7 +213,7 @@ const (
 	DatasetPropSnapdir
 	DatasetPropPrivate /* not exposed to user, temporary */
 	DatasetPropAclinherit
-	DatasetPropCreatetxg /* not exposed to the user */
+	DatasetPropCreateTXG /* not exposed to the user */
 	DatasetPropName      /* not exposed to the user */
 	DatasetPropCanmount
 	DatasetPropIscsioptions /* not exposed to the user */
@@ -240,12 +246,14 @@ const (
 	DatasetPropDedup
 	DatasetPropMlslabel
 	DatasetPropSync
+	DatasetPropDnodeSize
 	DatasetPropRefratio
 	DatasetPropWritten
 	DatasetPropClones
 	DatasetPropLogicalused
 	DatasetPropLogicalreferenced
 	DatasetPropInconsistent /* not exposed to the user */
+	DatasetPropVolmode
 	DatasetPropFilesystemLimit
 	DatasetPropSnapshotLimit
 	DatasetPropFilesystemCount
@@ -259,6 +267,17 @@ const (
 	DatasetPropRelatime
 	DatasetPropRedundantMetadata
 	DatasetPropOverlay
+	DatasetPropPrevSnap
+	DatasetPropReceiveResumeToken
+	DatasetPropEncryption
+	DatasetPropKeyLocation
+	DatasetPropKeyFormat
+	DatasetPropPBKDF2Salt
+	DatasetPropPBKDF2Iters
+	DatasetPropEncryptionRoot
+	DatasetPropKeyGUID
+	DatasetPropKeyStatus
+	DatasetPropRemapTXG /* not exposed to the user */
 	DatasetNumProps
 )
 
