@@ -1114,10 +1114,16 @@ func (s PoolStatus) String() string {
 		return "VERSION_NEWER"
 	case PoolStatusHostidMismatch: /* last accessed by another system */
 		return "HOSTID_MISMATCH"
+	case PoolStatusHosidActive: /* currently active on another system */
+		return "HOSTID_ACTIVE"
+	case PoolStatusHostidRequired: /* multihost=on and hostid=0 */
+		return "HOSTID_REQUIRED"
 	case PoolStatusIoFailureWait: /* failed I/O, failmode 'wait' */
 		return "FAILURE_WAIT"
 	case PoolStatusIoFailureContinue: /* failed I/O, failmode 'continue' */
 		return "FAILURE_CONTINUE"
+	case PoolStatusIOFailureMap: /* ailed MMP, failmode not 'panic' */
+		return "HOSTID_FAILURE_MAP"
 	case PoolStatusBadLog: /* cannot read log chain(s) */
 		return "BAD_LOG"
 	case PoolStatusErrata: /* informational errata available */
