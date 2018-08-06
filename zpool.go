@@ -377,6 +377,9 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 			err = errPoolList
 			return
 		}
+		if PoolState(C.get_zpool_state(tconfig)) == PoolStateDestroyed {
+			continue // skip destroyed pools
+		}
 		if guid {
 			sguid := fmt.Sprint(C.get_zpool_guid(tconfig))
 			if q == sguid {
