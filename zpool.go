@@ -913,6 +913,14 @@ func PoolCreate(name string, vdev VDevTree, features map[string]string,
 	features["filesystem_limits"] = FENABLED
 	features["large_blocks"] = FENABLED
 
+	// Enable 0.7.x features per default
+	features["multi_vdev_crash_dump"] = FENABLED
+	features["large_dnode"] = FENABLED
+	features["sha512"] = FENABLED
+	features["skein"] = FENABLED
+	features["edonr"] = FENABLED
+	features["userobj_accounting"] = FENABLED
+
 	// convert properties
 	cprops := toCPoolProperties(props)
 	if cprops != nil {
