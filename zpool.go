@@ -319,6 +319,9 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		}
 
 		ep.State = PoolState(C.get_zpool_state(config))
+		if ep.State == PoolStateDestroyed {
+			continue // skip destroyed pools
+		}
 
 		if cname = C.get_zpool_name(config); cname == nil {
 			err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_POOL_NAME)
