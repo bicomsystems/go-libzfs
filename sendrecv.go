@@ -101,15 +101,20 @@ func (d *Dataset) send(FromName string, outf *os.File, flags *SendFlags) (err er
 	if dpath, err = d.Path(); err != nil {
 		return
 	}
+	sendparams := strings.Split(dpath, "@")
+	parent := sendparams[0]
 	if len(FromName) > 0 {
-		if FromName[0] == '#' || FromName[0] == '@' {
-			FromName = dpath + FromName
+		if FromName[0] == '@' {
+			FromName = FromName[1:]
+		} else if strings.Contains(FromName, "/") {
+			from := strings.Split(FromName, "@")
+			if len(from) > 0 {
+				FromName = from[1]
+			}
 		}
 		cfromname = C.CString(FromName)
 		defer C.free(unsafe.Pointer(cfromname))
 	}
-	sendparams := strings.Split(dpath, "@")
-	parent := sendparams[0]
 	ctoname = C.CString(sendparams[1])
 	defer C.free(unsafe.Pointer(ctoname))
 	if pd, err = DatasetOpen(parent); err != nil {
@@ -200,7 +205,7 @@ func (d *Dataset) SendFrom(FromName string, outf *os.File, flags SendFlags) (err
 			return
 		}
 	}
-	err = d.send(from[1], outf, &flags)
+	err = d.send("@"+from[1], outf, &flags)
 	return
 }
 
