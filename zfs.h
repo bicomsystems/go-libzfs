@@ -5,6 +5,9 @@
 #ifndef SERVERWARE_ZFS_H
 #define SERVERWARE_ZFS_H
 
+extern void thread_init(void);
+extern void thread_fini(void);
+
 struct dataset_list {
 	zfs_handle_t *zh;
 	void *pnext;

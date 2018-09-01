@@ -254,7 +254,10 @@ func PoolImportSearch(searchpaths []string) (epools []ExportedPool, err error) {
 		C.strings_setat(cpaths, C.int(i), csPath)
 	}
 
+	C.thread_init()
 	pools := C.zpool_find_import(C.libzfsHandle, C.int(numofp), cpaths)
+	C.thread_fini()
+
 	defer C.nvlist_free(pools)
 	elem = C.nvlist_next_nvpair(pools, elem)
 	epools = make([]ExportedPool, 0, 1)
@@ -310,8 +313,9 @@ func poolSearchImport(q string, searchpaths []string, guid bool) (name string,
 		defer C.free(unsafe.Pointer(csPath))
 		C.strings_setat(cpaths, C.int(i), csPath)
 	}
-
+	C.thread_init()
 	pools := C.zpool_find_import(C.libzfsHandle, C.int(numofp), cpaths)
+	C.thread_fini()
 	defer C.nvlist_free(pools)
 
 	elem = C.nvlist_next_nvpair(pools, elem)

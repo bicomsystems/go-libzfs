@@ -171,6 +171,10 @@ const (
 	PoolPropLeaked
 	PoolPropMaxBlockSize
 	PoolPropTName
+	PoolPropMaxNodeSize
+	PoolPropMultihost
+	PoolPropCheckpoint
+	PoolPropLoadGUID
 	PoolNumProps
 )
 
