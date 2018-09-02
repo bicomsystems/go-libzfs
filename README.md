@@ -2,7 +2,18 @@
 
 **go-libzfs** currently implements basic manipulation of ZFS pools and data sets. Plan is to add more in further development, improve documentation with more examples, and add more tests. _go-libzfs_ use libzfs C library and does not wrap OpenZFS CLI tools. That way it ensure best performance. Per my personal opinion its more reliable way to do it, and that libzfs is less subject of possible changes then CLI tools.  Goal is to let easy using and manipulating OpenZFS form with in go, and tries to map libzfs C library in to go style package respecting golang common practice.
 
-[![GoDoc](https://godoc.org/github.com/bicomsystems/go-libzfs?status.svg)](https://godoc.org/github.com/bicomsystems/go-libzfs)
+[![GoDoc](https://godoc.org/github.com/lorenz/go-libzfs?status.svg)](https://godoc.org/github.com/lorenz/go-libzfs)
+
+# Fork status
+This fork has two main features that are not part of the original repository
+* Compatible with ZFSOnLinux 0.7+
+* Much better error handling using a custom type which exposes errno information
+This also has some additioanl fixes when I saw issues in for my use cases.
+
+Upstream seems to only maintain support for an older version of libzfs (which at least in ZOL doesn't work with any recent versions), so I've decided to maintain my own fork.
+I'm accepting PRs on this fork, so if you want to contribute you're welcome :)
+
+Thanks to everyone who worked on the original repository.
 
 ## Main features
 
@@ -15,20 +26,19 @@
 
 ## Requirements:
 
-- OpenZFS and libzfs with development headers installed.
-- Developed using go1.4.2
+* ZFSOnLinux 0.7+ and libzfs with development headers installed.
 
 ## Installing
 
 ```sh
-go get github.com/bicomsystems/go-libzfs
+go get github.com/lorenz/go-libzfs
 ```
 
 ## Testing
 
 ```sh
 # On command line shell run
-cd $GOPATH/src/github.com/bicomsystems/go-libzfs
+cd $GOPATH/src/github.com/lorenz/go-libzfs
 go test
 ```
 
@@ -52,8 +62,7 @@ props[DatasetPropVolblocksize] = Property{Value: "4096"}
 props[DatasetPropReservation] = Property{Value: strSize}
 
 // Lets create desired volume
-d, err := DatasetCreate("TESTPOOL/VOLUME1", DatasetTypeVolume, props)
-if err != nil {
+d, err := DatasetCreate("TESTPOOL/VOLUME1", DatasetTypeVolume, props)if err != nil {
 	println(err.Error())
 	return
 }
