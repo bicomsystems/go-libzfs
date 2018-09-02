@@ -261,7 +261,7 @@ func (d *Dataset) Receive(inf *os.File, flags RecvFlags) (err error) {
 	defer C.free(unsafe.Pointer(cflags))
 	dest := C.CString(dpath)
 	defer C.free(unsafe.Pointer(dest))
-	ec := C.zfs_receive(C.libzfsHandle, dest, cflags, C.int(inf.Fd()), nil)
+	ec := C.zfs_receive(C.libzfsHandle, dest, props, cflags, C.int(inf.Fd()), nil)
 	if ec != 0 {
 		err = fmt.Errorf("ZFS receive of %s failed. %s", C.GoString(dest), LastError().Error())
 	}

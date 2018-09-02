@@ -106,9 +106,9 @@ func DatasetOpen(path string) (d Dataset, err error) {
 	if d.list == nil || d.list.zh == nil {
 		err = LastError()
 		if err == nil {
-			err = fmt.Errorf("dataset not found.")
+			err = newError(ENoent, "dataset not found.")
 		}
-		err = fmt.Errorf("%s - %s", err.Error(), path)
+		err = wrapError(err, fmt.Sprintf("%s - %s", err.Error(), path))
 		return
 	}
 	d.Type = DatasetType(C.dataset_type(d.list))

@@ -189,7 +189,7 @@ property_list_ptr read_zpool_property(zpool_list_ptr pool, int prop) {
 	property_list_ptr list = new_property_list();
 
 	r = zpool_get_prop(pool->zph, prop,
-		list->value, INT_MAX_VALUE, &source);
+		list->value, INT_MAX_VALUE, &source, B_FALSE);
 	if (r == 0) {
 		// strcpy(list->name, zpool_prop_to_name(prop));
 		zprop_source_tostr(list->source, source);
