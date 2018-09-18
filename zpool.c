@@ -490,7 +490,8 @@ nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv) {
 
 
 nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan) {
-	importargs_t idata = { 0 };
+	importargs_t idata;
+	memset(&idata, 0, sizeof(importargs_t));
 	idata.path = path;
 	idata.paths = paths;
 	// idata.scan = 0;
