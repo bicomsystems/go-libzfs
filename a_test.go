@@ -25,6 +25,7 @@ func Test(t *testing.T) {
 	zfsTestDatasetSnapshot(t)
 	zfsTestDatasetOpenAll(t)
 	zfsTestDatasetSetProperty(t)
+	zfsTestDatasetHoldRelease(t)
 
 	zfsTestDatasetDestroy(t)
 

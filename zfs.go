@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -36,6 +37,12 @@ const (
 	// DatasetTypeBookmark - bookmark dataset
 	DatasetTypeBookmark = (1 << 4)
 )
+
+// HoldTag - user holds  tags
+type HoldTag struct {
+	Name      string
+	Timestamp time.Time
+}
 
 // Dataset - ZFS dataset object
 type Dataset struct {
@@ -99,6 +106,16 @@ func DatasetCloseAll(datasets []Dataset) {
 
 // DatasetOpen open dataset and all of its recursive children datasets
 func DatasetOpen(path string) (d Dataset, err error) {
+	if d, err = DatasetOpenSingle(path); err != nil {
+		return
+	}
+	err = d.openChildren()
+	return
+}
+
+// DatasetOpenSingle open dataset without opening all of its recursive
+// children datasets
+func DatasetOpenSingle(path string) (d Dataset, err error) {
 	csPath := C.CString(path)
 	d.list = C.dataset_open(csPath)
 	C.free(unsafe.Pointer(csPath))
@@ -117,7 +134,6 @@ func DatasetOpen(path string) (d Dataset, err error) {
 	if err != nil {
 		return
 	}
-	err = d.openChildren()
 	return
 }
 
@@ -198,6 +214,16 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 	} else {
 		err = errors.New(msgDatasetIsNil)
 	}
+	return
+}
+
+// IsSnapshot - retrun true if datset is snapshot
+func (d *Dataset) IsSnapshot() (ok bool, err error) {
+	var path string
+	if path, err = d.Path(); err != nil {
+		return
+	}
+	ok = d.Type == DatasetTypeSnapshot || strings.Contains(path, "@")
 	return
 }
 
@@ -306,6 +332,7 @@ func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 	return
 }
 
+// GetUserProperty - lookup and return user propery
 func (d *Dataset) GetUserProperty(p string) (prop Property, err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -345,6 +372,7 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 	return
 }
 
+// SetUserProperty -
 func (d *Dataset) SetUserProperty(prop, value string) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -515,6 +543,93 @@ func (d *Dataset) UnmountAll(flags int) (err error) {
 		}
 	}
 	return d.Unmount(flags)
+}
+
+// Hold - Adds a single reference, named with the tag argument, to the snapshot.
+// Each snapshot has its own tag namespace, and tags must be unique within that space.
+func (d *Dataset) Hold(flag string) (err error) {
+	var path string
+	var pd Dataset
+	if path, err = d.Path(); err != nil {
+		return
+	}
+	if !strings.Contains(path, "@") {
+		err = fmt.Errorf("'%s' is not a snapshot", path)
+		return
+	}
+	pd, err = DatasetOpenSingle(path[:strings.Index(path, "@")])
+	if err != nil {
+		return
+	}
+	defer pd.Close()
+	csSnapName := C.CString(path[strings.Index(path, "@")+1:])
+	defer C.free(unsafe.Pointer(csSnapName))
+	csFlag := C.CString(flag)
+	defer C.free(unsafe.Pointer(csFlag))
+	if 0 != C.zfs_hold(pd.list.zh, csSnapName, csFlag, booleanT(false), -1) {
+		err = LastError()
+	}
+	return
+}
+
+// Release - Removes a single reference, named with the tag argument, from the specified snapshot.
+// The tag must already exist for each snapshot.  If a hold exists on a snapshot, attempts to destroy
+//  that snapshot by using the zfs destroy command return EBUSY.
+func (d *Dataset) Release(flag string) (err error) {
+	var path string
+	var pd Dataset
+	if path, err = d.Path(); err != nil {
+		return
+	}
+	if !strings.Contains(path, "@") {
+		err = fmt.Errorf("'%s' is not a snapshot", path)
+		return
+	}
+	pd, err = DatasetOpenSingle(path[:strings.Index(path, "@")])
+	if err != nil {
+		return
+	}
+	defer pd.Close()
+	csSnapName := C.CString(path[strings.Index(path, "@")+1:])
+	defer C.free(unsafe.Pointer(csSnapName))
+	csFlag := C.CString(flag)
+	defer C.free(unsafe.Pointer(csFlag))
+	if 0 != C.zfs_release(pd.list.zh, csSnapName, csFlag, booleanT(false)) {
+		err = LastError()
+	}
+	return
+}
+
+// Holds - Lists all existing user references for the given snapshot
+func (d *Dataset) Holds() (tags []HoldTag, err error) {
+	var nvl *C.nvlist_t
+	var nvp *C.nvpair_t
+	var tu64 C.uint64_t
+	var path string
+	if path, err = d.Path(); err != nil {
+		return
+	}
+	if !strings.Contains(path, "@") {
+		err = fmt.Errorf("'%s' is not a snapshot", path)
+		return
+	}
+	if 0 != C.zfs_get_holds(d.list.zh, &nvl) {
+		err = LastError()
+		return
+	}
+	defer C.nvlist_free(nvl)
+	tags = make([]HoldTag, 0, 5)
+	for nvp = C.nvlist_next_nvpair(nvl, nvp); nvp != nil; {
+		tag := C.nvpair_name(nvp)
+		C.nvpair_value_uint64(nvp, &tu64)
+		tags = append(tags, HoldTag{
+			Name:      C.GoString(tag),
+			Timestamp: time.Unix(int64(tu64), 0),
+		})
+
+		nvp = C.nvlist_next_nvpair(nvl, nvp)
+	}
+	return
 }
 
 // DatasetPropertyToName convert property to name
