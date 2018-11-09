@@ -182,8 +182,10 @@ func DatasetCreate(path string, dtype DatasetType,
 // and cleanup dataset object/s from memory)
 func (d *Dataset) Close() {
 	// path, _ := d.Path()
+	Global.Mtx.Lock()
 	C.dataset_list_close(d.list)
 	d.list = nil
+	Global.Mtx.Unlock()
 	for _, cd := range d.Children {
 		cd.Close()
 	}
@@ -320,6 +322,8 @@ func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	plist := C.read_dataset_property(d.list, C.int(p))
 	if plist == nil {
 		err = LastError()
@@ -492,6 +496,8 @@ func (d *Dataset) IsMounted() (mounted bool, where string) {
 	if d.list == nil {
 		return
 	}
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	mp := C.dataset_is_mounted(d.list)
 	// defer C.free(mp)
 	if mounted = (mp != nil); mounted {
@@ -503,6 +509,8 @@ func (d *Dataset) IsMounted() (mounted bool, where string) {
 
 // Mount the given filesystem.
 func (d *Dataset) Mount(options string, flags int) (err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
