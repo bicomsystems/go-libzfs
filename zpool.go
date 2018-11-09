@@ -1,5 +1,6 @@
 package zfs
 
+// #cgo CFLAGS: -D__USE_LARGEFILE64=1
 // #include <stdlib.h>
 // #include <libzfs.h>
 // #include "common.h"
@@ -915,6 +916,14 @@ func PoolCreate(name string, vdev VDevTree, features map[string]string,
 	features["filesystem_limits"] = FENABLED
 	features["large_blocks"] = FENABLED
 
+	// Enable 0.7.x features per default
+	features["multi_vdev_crash_dump"] = FENABLED
+	features["large_dnode"] = FENABLED
+	features["sha512"] = FENABLED
+	features["skein"] = FENABLED
+	features["edonr"] = FENABLED
+	features["userobj_accounting"] = FENABLED
+
 	// convert properties
 	cprops := toCPoolProperties(props)
 	if cprops != nil {
@@ -1116,10 +1125,16 @@ func (s PoolStatus) String() string {
 		return "VERSION_NEWER"
 	case PoolStatusHostidMismatch: /* last accessed by another system */
 		return "HOSTID_MISMATCH"
+	case PoolStatusHosidActive: /* currently active on another system */
+		return "HOSTID_ACTIVE"
+	case PoolStatusHostidRequired: /* multihost=on and hostid=0 */
+		return "HOSTID_REQUIRED"
 	case PoolStatusIoFailureWait: /* failed I/O, failmode 'wait' */
 		return "FAILURE_WAIT"
 	case PoolStatusIoFailureContinue: /* failed I/O, failmode 'continue' */
 		return "FAILURE_CONTINUE"
+	case PoolStatusIOFailureMap: /* ailed MMP, failmode not 'panic' */
+		return "HOSTID_FAILURE_MAP"
 	case PoolStatusBadLog: /* cannot read log chain(s) */
 		return "BAD_LOG"
 	case PoolStatusErrata: /* informational errata available */

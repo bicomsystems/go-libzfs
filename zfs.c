@@ -256,6 +256,10 @@ struct zfs_cmd *new_zfs_cmd(){
 }
 
 int estimate_send_size(struct zfs_cmd *zc) {
-	return zfs_ioctl(libzfsHandle, ZFS_IOC_SEND, zc);
+	int rc = zfs_ioctl(libzfsHandle, ZFS_IOC_SEND, zc);
+	if (rc != 0) {
+		rc = errno;
+	}
+	return rc;
 }
 

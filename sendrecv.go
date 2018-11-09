@@ -5,13 +5,18 @@ package zfs
 // #include "common.h"
 // #include "zpool.h"
 // #include "zfs.h"
+// #include <memory.h>
+// #include <string.h>
 import "C"
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
+	"strconv"
 	"strings"
-	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -23,11 +28,11 @@ type SendFlags struct {
 	Dedup      bool
 	Props      bool
 	DryRun     bool
-	// Parsable   bool
-	// Progress   bool
+	Parsable   bool
+	Progress   bool
 	LargeBlock bool
 	EmbedData  bool
-	// Compress   bool
+	Compress   bool
 }
 
 type RecvFlags struct {
@@ -58,11 +63,11 @@ func to_sendflags_t(flags *SendFlags) (cflags *C.sendflags_t) {
 	cflags.dedup = to_boolean_t(flags.Dedup)
 	cflags.props = to_boolean_t(flags.Props)
 	cflags.dryrun = to_boolean_t(flags.DryRun)
-	// cflags.parsable = to_boolean_t(flags.Parsable)
-	// cflags.progress = to_boolean_t(flags.Progress)
+	cflags.parsable = to_boolean_t(flags.Parsable)
+	cflags.progress = to_boolean_t(flags.Progress)
 	cflags.largeblock = to_boolean_t(flags.LargeBlock)
 	cflags.embed_data = to_boolean_t(flags.EmbedData)
-	// cflags.compress = to_boolean_t(flags.Compress)
+	cflags.compress = to_boolean_t(flags.Compress)
 	return
 }
 
@@ -96,15 +101,20 @@ func (d *Dataset) send(FromName string, outf *os.File, flags *SendFlags) (err er
 	if dpath, err = d.Path(); err != nil {
 		return
 	}
+	sendparams := strings.Split(dpath, "@")
+	parent := sendparams[0]
 	if len(FromName) > 0 {
-		if FromName[0] == '#' || FromName[0] == '@' {
-			FromName = dpath + FromName
+		if FromName[0] == '@' {
+			FromName = FromName[1:]
+		} else if strings.Contains(FromName, "/") {
+			from := strings.Split(FromName, "@")
+			if len(from) > 0 {
+				FromName = from[1]
+			}
 		}
 		cfromname = C.CString(FromName)
 		defer C.free(unsafe.Pointer(cfromname))
 	}
-	sendparams := strings.Split(dpath, "@")
-	parent := sendparams[0]
 	ctoname = C.CString(sendparams[1])
 	defer C.free(unsafe.Pointer(ctoname))
 	if pd, err = DatasetOpen(parent); err != nil {
@@ -195,57 +205,65 @@ func (d *Dataset) SendFrom(FromName string, outf *os.File, flags SendFlags) (err
 			return
 		}
 	}
-	err = d.send(from[1], outf, &flags)
+	err = d.send("@"+from[1], outf, &flags)
 	return
 }
 
-func (d *Dataset) SendSize(FromName string, flags SendFlags) (size uint64, err error) {
-	var porigin Property
-	var from Dataset
-	var dpath string
-	if dpath, err = d.Path(); err != nil {
+// SendSize - estimate snapshot size to transfer
+func (d *Dataset) SendSize(FromName string, flags SendFlags) (size int64, err error) {
+	var r, w *os.File
+	errch := make(chan error)
+	defer func() {
+		select {
+		case <-errch:
+		default:
+		}
+		close(errch)
+	}()
+	flags.DryRun = true
+	flags.Verbose = true
+	flags.Progress = true
+	flags.Parsable = true
+	if r, w, err = os.Pipe(); err != nil {
 		return
 	}
-	zc := C.new_zfs_cmd()
-	defer C.free(unsafe.Pointer(zc))
-	dpath = strings.Split(dpath, "@")[0]
-	if len(FromName) > 0 {
+	defer r.Close()
+	go func() {
+		var tmpe error
+		saveOut := C.dup(C.fileno(C.stdout))
+		if res := C.dup2(C.int(w.Fd()), C.fileno(C.stdout)); res < 0 {
+			tmpe = fmt.Errorf("Redirection of zfslib stdout failed %d", res)
+		} else {
+			tmpe = d.send(FromName, w, &flags)
+			C.fflush(C.stdout)
+			C.dup2(saveOut, C.fileno(C.stdout))
+		}
+		w.Close()
+		errch <- tmpe
+	}()
 
-		if FromName[0] == '#' || FromName[0] == '@' {
-			FromName = dpath + FromName
-		}
-		porigin, _ = d.GetProperty(DatasetPropOrigin)
-		if len(porigin.Value) > 0 && porigin.Value == FromName {
-			FromName = ""
-			flags.FromOrigin = true
-		}
-		if from, err = DatasetOpen(FromName); err != nil {
+	r.SetReadDeadline(time.Now().Add(15 * time.Second))
+	var data []byte
+	if data, err = ioutil.ReadAll(r); err != nil {
+		return
+	}
+	// parse size
+	var sizeRe *regexp.Regexp
+	if sizeRe, err = regexp.Compile("size[ \t]*([0-9]+)"); err != nil {
+		return
+	}
+	matches := sizeRe.FindAllSubmatch(data, 3)
+	if len(matches) > 0 && len(matches[0]) > 1 {
+		if size, err = strconv.ParseInt(
+			string(matches[0][1]), 10, 64); err != nil {
 			return
 		}
-		zc.zc_fromobj = C.zfs_prop_get_int(from.list.zh, C.ZFS_PROP_OBJSETID)
-		from.Close()
-	} else {
-		zc.zc_fromobj = 0
 	}
-	zc.zc_obj = C.uint64_t(to_boolean_t(flags.FromOrigin))
-	zc.zc_sendobj = C.zfs_prop_get_int(d.list.zh, C.ZFS_PROP_OBJSETID)
-	zc.zc_guid = 1
-	zc.zc_flags = 0
-	if flags.LargeBlock {
-		zc.zc_flags |= C.LZC_SEND_FLAG_LARGE_BLOCK
-	}
-	if flags.EmbedData {
-		zc.zc_flags |= C.LZC_SEND_FLAG_EMBED_DATA
-	}
-
-	// C.estimate_ioctl(d.list.zhp, prevsnap_obj, to_boolean_t(flags.FromOrigin), lzc_send_flags, unsafe.Pointer(&size))
-	if ec, e := C.estimate_send_size(zc); ec != 0 {
-		err = fmt.Errorf("Failed to estimate send size. %s %d", e.Error(), e.(syscall.Errno))
-	}
-	size = uint64(zc.zc_objset_type)
+	err = <-errch
 	return
 }
 
+// Receive - receive snapshot stream
 func (d *Dataset) Receive(inf *os.File, flags RecvFlags) (err error) {
 	var dpath string
 	if dpath, err = d.Path(); err != nil {
@@ -261,7 +279,7 @@ func (d *Dataset) Receive(inf *os.File, flags RecvFlags) (err error) {
 	defer C.free(unsafe.Pointer(cflags))
 	dest := C.CString(dpath)
 	defer C.free(unsafe.Pointer(dest))
-	ec := C.zfs_receive(C.libzfsHandle, dest, cflags, C.int(inf.Fd()), nil)
+	ec := C.zfs_receive(C.libzfsHandle, dest, nil, cflags, C.int(inf.Fd()), nil)
 	if ec != 0 {
 		err = fmt.Errorf("ZFS receive of %s failed. %s", C.GoString(dest), LastError().Error())
 	}

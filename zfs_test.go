@@ -147,6 +147,47 @@ func zfsTestDatasetSnapshot(t *testing.T) {
 	print("PASS\n\n")
 }
 
+func zfsTestDatasetHoldRelease(t *testing.T) {
+	println("TEST Hold/Release(", TSTDatasetPathSnap, ", true, ...) ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPathSnap)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer d.Close()
+	err = d.Hold("keep")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var tags []zfs.HoldTag
+	tags, err = d.Holds()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for _, tag := range tags {
+		println("tag:", tag.Name, "timestamp:", tag.Timestamp.String())
+	}
+
+	err = d.Release("keep")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	tags, err = d.Holds()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	for _, tag := range tags {
+		println("* tag:", tag.Name, "timestamp:", tag.Timestamp.String())
+	}
+	print("PASS\n\n")
+}
+
 func zfsTestDatasetDestroy(t *testing.T) {
 	println("TEST DATASET Destroy( ", TSTDatasetPath, " ) ... ")
 	d, err := zfs.DatasetOpen(TSTDatasetPath)
