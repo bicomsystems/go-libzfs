@@ -2,6 +2,9 @@
  * using libzfs from go language, make go code shorter and more readable.
  */
 
+#ifndef loff_t
+	#define loff_t off_t
+#endif
 #define INT_MAX_NAME 256
 #define INT_MAX_VALUE 1024
 #define	ZAP_OLDMAXVALUELEN 1024
@@ -34,4 +37,7 @@ void free_properties(property_list_t *root);
 
 nvlist_ptr new_property_nvlist();
 int property_nvlist_add(nvlist_ptr ptr, const char* prop, const char *value);
+
+int redirect_libzfs_stdout(int to);
+int restore_libzfs_stdout(int saved);
 

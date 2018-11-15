@@ -79,7 +79,7 @@ nvlist_ptr get_zpool_vdev_tree(nvlist_ptr nv);
 
 nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path, boolean_t do_scan);
 
-__uint64_t set_zpool_vdev_online(zpool_list_t *pool, const char *path, int flags);
+uint64_t set_zpool_vdev_online(zpool_list_t *pool, const char *path, int flags);
 int set_zpool_vdev_offline(zpool_list_t *pool, const char *path, boolean_t istmp, boolean_t force);
 int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t rewind_policy);
 
