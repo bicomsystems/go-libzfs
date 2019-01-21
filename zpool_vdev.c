@@ -8,7 +8,7 @@
 #include "zpool.h"
 
 
-__uint64_t set_zpool_vdev_online(zpool_list_t *pool, const char *path, int flags) {
+uint64_t set_zpool_vdev_online(zpool_list_t *pool, const char *path, int flags) {
 	vdev_state_t newstate = VDEV_STATE_UNKNOWN;
 	zpool_vdev_online(pool->zph, path, flags, &newstate);
 	return newstate;

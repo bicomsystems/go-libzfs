@@ -230,13 +230,12 @@ func (d *Dataset) SendSize(FromName string, flags SendFlags) (size int64, err er
 	defer r.Close()
 	go func() {
 		var tmpe error
-		saveOut := C.dup(C.fileno(C.stdout))
-		if res := C.dup2(C.int(w.Fd()), C.fileno(C.stdout)); res < 0 {
-			tmpe = fmt.Errorf("Redirection of zfslib stdout failed %d", res)
+		saveOut := C.redirect_libzfs_stdout(C.int(w.Fd()))
+		if saveOut < 0 {
+			tmpe = fmt.Errorf("Redirection of zfslib stdout failed %d", saveOut)
 		} else {
 			tmpe = d.send(FromName, w, &flags)
-			C.fflush(C.stdout)
-			C.dup2(saveOut, C.fileno(C.stdout))
+			C.restore_libzfs_stdout(saveOut)
 		}
 		w.Close()
 		errch <- tmpe

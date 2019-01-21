@@ -10,6 +10,8 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"path"
+	"sort"
 	"strings"
 	"time"
 	"unsafe"
@@ -191,6 +193,13 @@ func (d *Dataset) Close() {
 	}
 }
 
+// reOpen - close and open dataset. Not thread safe!
+func (d *Dataset) reOpen() (err error) {
+	d.Close()
+	*d, err = DatasetOpen(d.Properties[DatasetPropName].Value)
+	return
+}
+
 // Destroy destroys the dataset.  The caller must make sure that the filesystem
 // isn't mounted, and that there are no active dependents. Set Defer argument
 // to true to defer destruction for when dataset is not in use. Call Close() to
@@ -220,12 +229,9 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 }
 
 // IsSnapshot - retrun true if datset is snapshot
-func (d *Dataset) IsSnapshot() (ok bool, err error) {
-	var path string
-	if path, err = d.Path(); err != nil {
-		return
-	}
-	ok = d.Type == DatasetTypeSnapshot || strings.Contains(path, "@")
+func (d *Dataset) IsSnapshot() (ok bool) {
+	path := d.Properties[DatasetPropName].Value
+	ok = (d.Type == DatasetTypeSnapshot || strings.Contains(path, "@"))
 	return
 }
 
@@ -292,6 +298,16 @@ func (d *Dataset) Pool() (p Pool, err error) {
 	}
 	err = LastError()
 	return
+}
+
+// PoolName - return name of the pool
+func (d *Dataset) PoolName() string {
+	path := d.Properties[DatasetPropName].Value
+	i := strings.Index(path, "/")
+	if i < 0 {
+		return path
+	}
+	return path[0:i]
 }
 
 // ReloadProperties re-read dataset's properties
@@ -650,5 +666,162 @@ func DatasetPropertyToName(p Prop) (name string) {
 	}
 	prop := C.zfs_prop_t(p)
 	name = C.GoString(C.zfs_prop_to_name(prop))
+	return
+}
+
+// DestroyPromote - Same as DestroyRecursive() except it will not destroy
+// any dependent clones, but promote them first.
+// This function will navigate any dependency chain
+// of cloned datasets using breadth first search to promote according and let
+// you remove dataset regardless of its cloned dependencies.
+// Note: that this function wan't work when you want to destroy snapshot this way.
+// However it will destroy all snaphsot of destroyed dataset without dependencies,
+// otherwise snapshot will move to promoted clone
+func (d *Dataset) DestroyPromote() (err error) {
+	var snaps []Dataset
+	var clones []string
+	// We need to save list of child snapshots, to destroy them latter
+	// since  they will be moved to promoted clone
+	var psnaps []string
+	if clones, err = d.Clones(); err != nil {
+		return
+	}
+	if len(clones) > 0 {
+		var cds Dataset
+		// For this to always work we need to promote youngest clone
+		// in terms of most recent origin snapshot or creation time if
+		// cloned from same snapshot
+		if cds, err = DatasetOpen(clones[0]); err != nil {
+			return
+		}
+		defer cds.Close()
+		// since promote will move the snapshots to promoted dataset
+		// we need to check and resolve possible name conflicts
+		if snaps, err = d.Snapshots(); err != nil {
+			return
+		}
+		for _, s := range snaps {
+			spath := s.Properties[DatasetPropName].Value
+			sname := spath[strings.Index(spath, "@"):]
+			// conflict and resolve
+			if ok, _ := cds.FindSnapshotName(sname); ok {
+				// snapshot with the same name already exist
+				volname := path.Base(spath[:strings.Index(spath, "@")])
+				sname = sname + "." + volname
+				if err = s.Rename(spath+"."+volname, false, true); err != nil {
+					return
+				}
+			}
+			psnaps = append(psnaps, sname)
+		}
+		if err = cds.Promote(); err != nil {
+			return
+		}
+	}
+	// destroy child datasets, since this works recursive
+	for _, cd := range d.Children {
+		if err = cd.DestroyPromote(); err != nil {
+			return
+		}
+	}
+	d.Children = make([]Dataset, 0)
+	if err = d.Destroy(false); err != nil {
+		return
+	}
+	// Load with new promoted snapshots
+	if len(clones) > 0 && len(psnaps) > 0 {
+		var cds Dataset
+		if cds, err = DatasetOpen(clones[0]); err != nil {
+			return
+		}
+		defer cds.Close()
+		// try to destroy (promoted) snapshots now
+		for _, sname := range psnaps {
+			if ok, snap := cds.FindSnapshotName(sname); ok {
+				snap.Destroy(false)
+			}
+		}
+	}
+	return
+}
+
+// Snapshots - filter and return all snapshots of dataset
+func (d *Dataset) Snapshots() (snaps []Dataset, err error) {
+	for _, ch := range d.Children {
+		if !ch.IsSnapshot() {
+			continue
+		}
+		snaps = append(snaps, ch)
+	}
+	return
+}
+
+// FindSnapshot - returns true if given path is one of dataset snaphsots
+func (d *Dataset) FindSnapshot(path string) (ok bool, snap Dataset) {
+	for _, ch := range d.Children {
+		if !ch.IsSnapshot() {
+			continue
+		}
+		if ok = (path == ch.Properties[DatasetPropName].Value); ok {
+			snap = ch
+			break
+		}
+	}
+	return
+}
+
+// FindSnapshotName - returns true and snapshot if given snapshot
+// name eg. '@snap1' is one of dataset snaphsots
+func (d *Dataset) FindSnapshotName(name string) (ok bool, snap Dataset) {
+	return d.FindSnapshot(d.Properties[DatasetPropName].Value + name)
+}
+
+// Clones - get list of all dataset paths cloned from this
+// dataset or this snapshot
+// List is sorted descedent by origin snapshot order
+func (d *Dataset) Clones() (clones []string, err error) {
+	// Clones can only live on same pool
+	var root Dataset
+	var sortDesc []Dataset
+	if root, err = DatasetOpen(d.PoolName()); err != nil {
+		return
+	}
+	defer root.Close()
+	dIsSnapshot := d.IsSnapshot()
+	// USe breadth first search to find all clones
+	queue := make(chan Dataset, 1024)
+	defer close(queue) // This will close and cleanup all
+	queue <- root      // start from the root element
+	for {
+		select {
+		case ds := <-queue: // pull from queue (breadth first search)
+			for _, ch := range ds.Children {
+				origin := ch.Properties[DatasetPropOrigin].Value
+				if len(origin) > 0 {
+					if dIsSnapshot && origin == d.Properties[DatasetPropName].Value {
+						// if this dataset is snaphot
+						ch.Properties[DatasetNumProps+1000] = d.Properties[DatasetPropCreateTXG]
+						sortDesc = append(sortDesc, ch)
+					} else {
+						// Check if origin of this dataset is one of snapshots
+						ok, snap := d.FindSnapshot(origin)
+						if !ok {
+							continue
+						}
+						ch.Properties[DatasetNumProps+1000] = snap.Properties[DatasetPropCreateTXG]
+						sortDesc = append(sortDesc, ch)
+					}
+				}
+				queue <- ch
+			}
+		default:
+			sort.Sort(clonesCreateDesc(sortDesc))
+			// This way we get clones ordered from most recent sanpshots first
+			for _, c := range sortDesc {
+				clones = append(clones, c.Properties[DatasetPropName].Value)
+			}
+			return
+		}
+	}
 	return
 }

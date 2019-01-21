@@ -54,3 +54,26 @@ nvlist_ptr new_property_nvlist() {
 int property_nvlist_add(nvlist_ptr list, const char *prop, const char *value) {
 	return nvlist_add_string(list, prop, value);
 }
+
+int redirect_libzfs_stdout(int to) {
+	int save, res;
+	save = dup(STDOUT_FILENO);
+	if (save < 0) {
+		return save;
+	}
+	res = dup2(to, STDOUT_FILENO);
+	if (res < 0) {
+		return res;
+	}
+	return save;
+}
+
+int restore_libzfs_stdout(int saved) {
+	int res;
+	fflush(stdout);
+	res = dup2(saved, STDOUT_FILENO);
+	if (res < 0) {
+		return res;
+	}
+	close(saved);
+}
