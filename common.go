@@ -178,6 +178,8 @@ const (
 	PoolPropTName
 	PoolPropMaxNodeSize
 	PoolPropMultiHost
+	PoolPropCheckpoint
+	PoolPropLoadGuid
 	PoolNumProps
 )
 
