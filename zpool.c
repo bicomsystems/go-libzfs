@@ -6,6 +6,8 @@ typedef unsigned long int rlim64_t;
 
 #include <libzfs.h>
 #include <libzfs/sys/zfs_context.h>
+#include <libzutil.h>
+#include <thread_pool.h>
 
 #include <memory.h>
 #include <string.h>
@@ -499,18 +501,24 @@ nvlist_ptr go_zpool_search_import(libzfs_handle_ptr zfsh, int paths, char **path
 	idata.paths = paths;
 	// idata.scan = 0;
 
-	thread_init();
-	pools = zpool_search_import(zfsh, &idata);
-	thread_fini();
+	tpool_t *t;
+	t = tpool_create(1, 5 * sysconf(_SC_NPROCESSORS_ONLN), 0, NULL);
+	if (t == NULL)
+			return NULL;
+
+	pools = zpool_search_import(zfsh, &idata, &libzfs_config_ops);
+
+	tpool_wait(t);
+	tpool_destroy(t);
 	return pools;
 }
 
 
-int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t rewind_policy) {
+int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t load_policy) {
 	nvlist_t *policy = NULL;
 	int ret = 0;
 	if (nvlist_alloc(&policy, NV_UNIQUE_NAME, 0) != 0 ||
-	    nvlist_add_uint32(policy, ZPOOL_REWIND_REQUEST, rewind_policy) != 0)
+	    nvlist_add_uint32(policy, ZPOOL_LOAD_POLICY, load_policy) != 0)
 		return (1);
 
 	if (zpool_clear(pool->zph, device, policy) != 0)
