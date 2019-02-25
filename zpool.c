@@ -79,11 +79,11 @@ char *sZPOOL_CONFIG_DEGRADED = ZPOOL_CONFIG_DEGRADED;
 char *sZPOOL_CONFIG_REMOVED = ZPOOL_CONFIG_REMOVED;
 char *sZPOOL_CONFIG_FRU = ZPOOL_CONFIG_FRU;
 char *sZPOOL_CONFIG_AUX_STATE = ZPOOL_CONFIG_AUX_STATE;
-char *sZPOOL_REWIND_POLICY = ZPOOL_REWIND_POLICY;
-char *sZPOOL_REWIND_REQUEST = ZPOOL_REWIND_REQUEST;
-char *sZPOOL_REWIND_REQUEST_TXG = ZPOOL_REWIND_REQUEST_TXG;
-char *sZPOOL_REWIND_META_THRESH = ZPOOL_REWIND_META_THRESH;
-char *sZPOOL_REWIND_DATA_THRESH = ZPOOL_REWIND_DATA_THRESH;
+char *sZPOOL_LOAD_POLICY = ZPOOL_LOAD_POLICY;
+char *sZPOOL_LOAD_REWIND_POLICY = ZPOOL_LOAD_REWIND_POLICY;
+char *sZPOOL_LOAD_REQUEST_TXG = ZPOOL_LOAD_REQUEST_TXG;
+char *sZPOOL_LOAD_META_THRESH = ZPOOL_LOAD_META_THRESH;
+char *sZPOOL_LOAD_DATA_THRESH = ZPOOL_LOAD_DATA_THRESH;
 char *sZPOOL_CONFIG_LOAD_TIME = ZPOOL_CONFIG_LOAD_TIME;
 char *sZPOOL_CONFIG_LOAD_DATA_ERRORS = ZPOOL_CONFIG_LOAD_DATA_ERRORS;
 char *sZPOOL_CONFIG_REWIND_TIME = ZPOOL_CONFIG_REWIND_TIME;
@@ -216,7 +216,7 @@ property_list_ptr read_append_zpool_property(zpool_list_ptr pool, property_list_
 	// printf("p: %s %s %s\n", newitem->name, newitem->value, newitem->source);
 	newitem->pnext = proot;
 	proot = newitem;
-	
+
 	return proot;
 }
 
@@ -231,24 +231,22 @@ property_list_t *read_zpool_properties(zpool_list_ptr pool) {
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_HEALTH);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_GUID);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_VERSION);
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_BOOTFS);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DELEGATION);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_AUTOREPLACE);	
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_BOOTFS);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DELEGATION);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_AUTOREPLACE);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_CACHEFILE);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_FAILUREMODE);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_LISTSNAPS);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_AUTOEXPAND);
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DEDUPDITTO);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DEDUPRATIO);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_FREE);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_ALLOCATED);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_READONLY);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_ASHIFT);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_COMMENT);	
-	root = read_append_zpool_property(pool, root, ZPOOL_PROP_EXPANDSZ);	
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DEDUPDITTO);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_DEDUPRATIO);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_FREE);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_ALLOCATED);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_READONLY);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_ASHIFT);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_COMMENT);
+	root = read_append_zpool_property(pool, root, ZPOOL_PROP_EXPANDSZ);
 	root = read_append_zpool_property(pool, root, ZPOOL_PROP_FREEING);
-	
-
 
 	list = new_property_list();
 	list->property = ZPOOL_NUM_PROPS;
@@ -455,7 +453,7 @@ uint64_t get_vdev_is_log(nvlist_ptr nv) {
 }
 
 
-// return 
+// return
 uint64_t get_zpool_state(nvlist_ptr nv) {
 	uint64_t state = 0;
 	nvlist_lookup_uint64(nv, ZPOOL_CONFIG_POOL_STATE, &state);
