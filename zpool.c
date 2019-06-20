@@ -2,8 +2,6 @@
  * using libzfs from go language, and make go code shorter and more readable.
  */
 
-typedef unsigned long int rlim64_t;
-
 #include <libzfs.h>
 #include <libzfs/sys/zfs_context.h>
 #include <libzutil.h>
