@@ -131,7 +131,7 @@ func (d *Dataset) send(FromName string, outf *os.File, flags *SendFlags) (err er
 func (d *Dataset) SendOne(FromName string, outf *os.File, flags *SendFlags) (err error) {
 	var cfromname, ctoname *C.char
 	var dpath string
-	var lzc_send_flags uint32
+	var lzc_send_flags C.struct_sendflags
 
 	if d.Type == DatasetTypeSnapshot || (len(FromName) > 0 && !strings.Contains(FromName, "#")) {
 		err = fmt.Errorf(
@@ -144,10 +144,10 @@ func (d *Dataset) SendOne(FromName string, outf *os.File, flags *SendFlags) (err
 	}
 
 	if flags.LargeBlock {
-		lzc_send_flags |= C.LZC_SEND_FLAG_LARGE_BLOCK
+		lzc_send_flags.largeblock = booleanT(true)
 	}
 	if flags.EmbedData {
-		lzc_send_flags |= C.LZC_SEND_FLAG_EMBED_DATA
+		lzc_send_flags.embed_data = booleanT(true)
 	}
 	// if (flags.Compress)
 	// 	lzc_send_flags |= LZC_SEND_FLAG_COMPRESS;
