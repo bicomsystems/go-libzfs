@@ -32,13 +32,11 @@ property_list_t *new_property_list() {
 }
 
 void free_properties(property_list_t *root) {
-	if (root != 0) {
-		property_list_t *tmp = 0;
-		do {
-			tmp = root->pnext;
-			free(root);
-			root = tmp;
-		} while(tmp);
+	property_list_t *tmp = 0;
+	while(root) {
+		tmp = root->pnext;
+		free(root);
+		root = tmp;
 	}
 }
 

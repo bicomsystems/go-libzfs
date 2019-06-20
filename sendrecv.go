@@ -241,7 +241,7 @@ func (d *Dataset) SendSize(FromName string, flags SendFlags) (size int64, err er
 		errch <- tmpe
 	}()
 
-	r.SetReadDeadline(time.Now().Add(15 * time.Second))
+	r.SetReadDeadline(time.Now().Add(60 * time.Second))
 	var data []byte
 	if data, err = ioutil.ReadAll(r); err != nil {
 		return
