@@ -180,6 +180,7 @@ const (
 	PoolPropMultiHost
 	PoolPropCheckpoint
 	PoolPropLoadGuid
+	PoolPropAutotrim
 	PoolNumProps
 )
 
