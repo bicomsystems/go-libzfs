@@ -56,7 +56,7 @@ func to_boolean_t(a bool) C.boolean_t {
 
 func to_sendflags_t(flags *SendFlags) (cflags *C.sendflags_t) {
 	cflags = C.alloc_sendflags()
-	cflags.verbose = to_boolean_t(flags.Verbose)
+	// cflags.verbose = to_boolean_t(flags.Verbose)
 	cflags.replicate = to_boolean_t(flags.Replicate)
 	cflags.doall = to_boolean_t(flags.DoAll)
 	cflags.fromorigin = to_boolean_t(flags.FromOrigin)
@@ -163,7 +163,7 @@ func (d *Dataset) SendOne(FromName string, outf *os.File, flags *SendFlags) (err
 	}
 	ctoname = C.CString(path.Base(dpath))
 	defer C.free(unsafe.Pointer(ctoname))
-	cerr := C.zfs_send_one(d.list.zh, cfromname, C.int(outf.Fd()), lzc_send_flags)
+	cerr := C.zfs_send_one(d.list.zh, cfromname, C.int(outf.Fd()), &lzc_send_flags, nil)
 	if cerr != 0 {
 		err = LastError()
 	}
