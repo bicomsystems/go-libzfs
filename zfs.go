@@ -384,6 +384,7 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 	C.free(unsafe.Pointer(csValue))
 	if errcode != 0 {
 		err = LastError()
+		return
 	}
 	// Update Properties member with change made
 	if _, err = d.GetProperty(p); err != nil {
