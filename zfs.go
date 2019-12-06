@@ -319,6 +319,7 @@ func (d *Dataset) ReloadProperties() (err error) {
 	d.Properties = make(map[Prop]Property)
 	Global.Mtx.Lock()
 	defer Global.Mtx.Unlock()
+	C.zfs_refresh_properties(d.list.zh)
 	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
 		plist := C.read_dataset_property(d.list, C.int(prop))
 		if plist == nil {
