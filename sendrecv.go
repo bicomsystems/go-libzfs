@@ -160,6 +160,40 @@ func (d *Dataset) SendResume(outf *os.File, flags *SendFlags, receiveResumeToken
 	return
 }
 
+func (d *Dataset) SendResume(outf *os.File, flags *SendFlags, receiveResumeToken string) (err error) {
+	if d.Type != DatasetTypeSnapshot {
+		err = fmt.Errorf("Unsupported method on filesystem or bookmark. Use func SendOne() for that purpose.")
+		return
+	}
+
+	var dpath string
+	var pd Dataset
+
+	cflags := to_sendflags_t(flags)
+	defer C.free(unsafe.Pointer(cflags))
+	if dpath, err = d.Path(); err != nil {
+		return
+	}
+	sendparams := strings.Split(dpath, "@")
+	parent := sendparams[0]
+
+	if pd, err = DatasetOpen(parent); err != nil {
+		return
+	}
+	defer pd.Close()
+
+	cReceiveResumeToken := C.CString(receiveResumeToken)
+	defer C.free(unsafe.Pointer(cReceiveResumeToken))
+
+	clerr := C.zfs_send_resume(C.libzfsHandle, cflags, C.int(outf.Fd()), cReceiveResumeToken)
+	if clerr != 0 {
+		err = LastError()
+		fmt.Println(err.Error())
+	}
+
+	return
+}
+
 func (d *Dataset) Send(outf *os.File, flags SendFlags) (err error) {
 	if flags.Replicate {
 		flags.DoAll = true
