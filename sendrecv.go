@@ -21,30 +21,30 @@ import (
 )
 
 type SendFlags struct {
-	Verbose    bool
-	Replicate  bool
-	DoAll      bool
-	FromOrigin bool
-	Dedup      bool
-	Props      bool
-	DryRun     bool
-	Parsable   bool
+	Verbose    bool // -v
+	Replicate  bool // -R
+	DoAll      bool // -I
+	FromOrigin bool // -o
+	Dedup      bool // -D
+	Props      bool // -p
+	DryRun     bool // -n
+	Parsable   bool // -P
+	LargeBlock bool // -L
+	EmbedData  bool // -e
+	Compress   bool // -c
 	Progress   bool
-	LargeBlock bool
-	EmbedData  bool
-	Compress   bool
 }
 
 type RecvFlags struct {
-	Verbose     bool
-	IsPrefix    bool
-	IsTail      bool
-	DryRun      bool
-	Force       bool
+	Verbose     bool // -v
+	IsPrefix    bool // -d
+	IsTail      bool // -e
+	DryRun      bool // -n
+	Force       bool // -r
+	Resumable   bool // -s
+	NoMount     bool // -u
 	CanmountOff bool
-	Resumable   bool
 	ByteSwap    bool
-	NoMount     bool
 }
 
 func to_boolean_t(a bool) C.boolean_t {
@@ -167,6 +167,40 @@ func (d *Dataset) SendOne(FromName string, outf *os.File, flags *SendFlags) (err
 	if cerr != 0 {
 		err = LastError()
 	}
+	return
+}
+
+func (d *Dataset) SendResume(outf *os.File, flags *SendFlags, receiveResumeToken string) (err error) {
+	if d.Type != DatasetTypeSnapshot {
+		err = fmt.Errorf("Unsupported method on filesystem or bookmark. Use func SendOne() for that purpose.")
+		return
+	}
+
+	var dpath string
+	var pd Dataset
+
+	cflags := to_sendflags_t(flags)
+	defer C.free(unsafe.Pointer(cflags))
+	if dpath, err = d.Path(); err != nil {
+		return
+	}
+	sendparams := strings.Split(dpath, "@")
+	parent := sendparams[0]
+
+	if pd, err = DatasetOpen(parent); err != nil {
+		return
+	}
+	defer pd.Close()
+
+	cReceiveResumeToken := C.CString(receiveResumeToken)
+	defer C.free(unsafe.Pointer(cReceiveResumeToken))
+
+	clerr := C.zfs_send_resume(C.libzfsHandle, cflags, C.int(outf.Fd()), cReceiveResumeToken)
+	if clerr != 0 {
+		err = LastError()
+		fmt.Println(err.Error())
+	}
+
 	return
 }
 
