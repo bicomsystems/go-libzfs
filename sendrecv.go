@@ -198,7 +198,6 @@ func (d *Dataset) SendResume(outf *os.File, flags *SendFlags, receiveResumeToken
 	clerr := C.zfs_send_resume(C.libzfsHandle, cflags, C.int(outf.Fd()), cReceiveResumeToken)
 	if clerr != 0 {
 		err = LastError()
-		fmt.Println(err.Error())
 	}
 
 	return
