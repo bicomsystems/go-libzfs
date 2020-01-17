@@ -79,7 +79,7 @@ func to_recvflags_t(flags *RecvFlags) (cflags *C.recvflags_t) {
 	cflags.dryrun = to_boolean_t(flags.DryRun)
 	cflags.force = to_boolean_t(flags.Force)
 	cflags.canmountoff = to_boolean_t(flags.CanmountOff)
-	// cflags.resumable = to_boolean_t(flags.Resumable)
+	cflags.resumable = to_boolean_t(flags.Resumable)
 	cflags.byteswap = to_boolean_t(flags.ByteSwap)
 	cflags.nomount = to_boolean_t(flags.NoMount)
 	return
