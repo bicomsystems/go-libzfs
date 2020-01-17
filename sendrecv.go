@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -122,48 +121,6 @@ func (d *Dataset) send(FromName string, outf *os.File, flags *SendFlags) (err er
 	}
 	defer pd.Close()
 	cerr := C.zfs_send(pd.list.zh, cfromname, ctoname, cflags, C.int(outf.Fd()), nil, nil, nil)
-	if cerr != 0 {
-		err = LastError()
-	}
-	return
-}
-
-func (d *Dataset) SendOne(FromName string, outf *os.File, flags *SendFlags) (err error) {
-	var cfromname, ctoname *C.char
-	var dpath string
-	var lzc_send_flags C.struct_sendflags
-
-	if d.Type == DatasetTypeSnapshot || (len(FromName) > 0 && !strings.Contains(FromName, "#")) {
-		err = fmt.Errorf(
-			"Unsupported with snapshot. Use func Send() for that purpose.")
-		return
-	}
-	if flags.Replicate || flags.DoAll || flags.Props || flags.Dedup || flags.DryRun {
-		err = fmt.Errorf("Unsupported flag with filesystem or bookmark.")
-		return
-	}
-
-	if flags.LargeBlock {
-		lzc_send_flags.largeblock = booleanT(true)
-	}
-	if flags.EmbedData {
-		lzc_send_flags.embed_data = booleanT(true)
-	}
-	// if (flags.Compress)
-	// 	lzc_send_flags |= LZC_SEND_FLAG_COMPRESS;
-	if dpath, err = d.Path(); err != nil {
-		return
-	}
-	if len(FromName) > 0 {
-		if FromName[0] == '#' || FromName[0] == '@' {
-			FromName = dpath + FromName
-		}
-		cfromname = C.CString(FromName)
-		defer C.free(unsafe.Pointer(cfromname))
-	}
-	ctoname = C.CString(path.Base(dpath))
-	defer C.free(unsafe.Pointer(ctoname))
-	cerr := C.zfs_send_one(d.list.zh, cfromname, C.int(outf.Fd()), &lzc_send_flags, nil)
 	if cerr != 0 {
 		err = LastError()
 	}
