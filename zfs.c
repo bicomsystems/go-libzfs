@@ -40,11 +40,11 @@ void dataset_list_free(dataset_list_t *list) {
 
 int dataset_list_callb(zfs_handle_t *dataset, void *data) {
 	dataset_list_t **lroot = (dataset_list_t**)data;
-	dataset_list_t *nroot = create_dataset_list_item();
 
 	if ( !((*lroot)->zh) ) {
 		(*lroot)->zh = dataset;
 	} else {
+		dataset_list_t *nroot = create_dataset_list_item();
 		nroot->zh = dataset;
 		nroot->pnext = (void*)*lroot;
 		*lroot = nroot;
