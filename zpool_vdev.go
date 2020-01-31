@@ -76,6 +76,7 @@ func (pool *Pool) Clear(device string) (err error) {
 	if sc := C.do_zpool_clear(pool.list, csdev, C.ZPOOL_NO_REWIND); sc != 0 {
 		err = fmt.Errorf("Pool clear failed")
 	}
+	C.free(unsafe.Pointer(csdev))
 	return
 }
 
