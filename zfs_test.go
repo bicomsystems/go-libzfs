@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/bicomsystems/go-libzfs"
+	zfs "github.com/bicomsystems/go-libzfs"
 )
 
 /* ------------------------------------------------------------------------- */
@@ -201,6 +201,38 @@ func zfsTestDatasetDestroy(t *testing.T) {
 		return
 	}
 	print("PASS\n\n")
+}
+
+func zfsTestMountPointConcurrency(t *testing.T) {
+	println("TEST DATASET MountPointConcurrency( ", TSTDatasetPath, " ) ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer d.Close()
+	gr1 := make(chan bool)
+	gr2 := make(chan bool)
+	go func() {
+		for i := 0; i < 30; i++ {
+			println("reload properties:", i)
+			// d.SetProperty(zfs.DatasetPropMountpoint, "/TEST")
+			d.ReloadProperties()
+		}
+		gr1 <- true
+	}()
+	go func() {
+		for i := 0; i < 100; i++ {
+			println("set mountpoint:", i)
+			d.SetProperty(zfs.DatasetPropMountpoint, "/TEST")
+			// d.GetProperty(zfs.DatasetPropMountpoint)
+		}
+		gr2 <- true
+	}()
+	d.SetProperty(zfs.DatasetPropMountpoint, "none")
+
+	<-gr1
+	<-gr2
 }
 
 /* ------------------------------------------------------------------------- */
