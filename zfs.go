@@ -125,13 +125,12 @@ func DatasetOpenSingle(path string) (d Dataset, err error) {
 	if d.list == nil || d.list.zh == nil {
 		err = LastError()
 		if err == nil {
-			err = fmt.Errorf("dataset not found.")
+			err = fmt.Errorf("dataset not found")
 		}
 		err = fmt.Errorf("%s - %s", err.Error(), path)
 		return
 	}
 	d.Type = DatasetType(C.dataset_type(d.list))
-	d.Properties = make(map[Prop]Property)
 	err = d.ReloadProperties()
 	if err != nil {
 		return
@@ -317,11 +316,17 @@ func (d *Dataset) ReloadProperties() (err error) {
 		return
 	}
 	d.Properties = make(map[Prop]Property)
-	Global.Mtx.Lock()
-	defer Global.Mtx.Unlock()
 	C.zfs_refresh_properties(d.list.zh)
 	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
-		plist := C.read_dataset_property(d.list, C.int(prop))
+		var plist *C.property_list_t
+		if prop == DatasetPropMounted || prop == DatasetPropMountpoint {
+			// prevent zfs mountpoint race conditions
+			Global.Mtx.Lock()
+			plist = C.read_dataset_property(d.list, C.int(prop))
+			Global.Mtx.Unlock()
+		} else {
+			plist = C.read_dataset_property(d.list, C.int(prop))
+		}
 		if plist == nil {
 			continue
 		}
@@ -339,8 +344,11 @@ func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	Global.Mtx.Lock()
-	defer Global.Mtx.Unlock()
+	if p == DatasetPropMounted || p == DatasetPropMountpoint {
+		// prevent zfs mountpoint race conditions
+		Global.Mtx.Lock()
+		defer Global.Mtx.Unlock()
+	}
 	plist := C.read_dataset_property(d.list, C.int(p))
 	if plist == nil {
 		err = LastError()
@@ -381,6 +389,11 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 		return
 	}
 	csValue := C.CString(value)
+	if p == DatasetPropMounted || p == DatasetPropMountpoint {
+		// prevent zfs mountpoint race conditions
+		Global.Mtx.Lock()
+		defer Global.Mtx.Unlock()
+	}
 	errcode := C.dataset_prop_set(d.list, C.zfs_prop_t(p), csValue)
 	C.free(unsafe.Pointer(csValue))
 	if errcode != 0 {
@@ -388,9 +401,14 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 		return
 	}
 	// Update Properties member with change made
-	if _, err = d.GetProperty(p); err != nil {
+	plist := C.read_dataset_property(d.list, C.int(p))
+	if plist == nil {
+		err = LastError()
 		return
 	}
+	defer C.free_properties(plist)
+	d.Properties[p] = Property{Value: C.GoString(&(*plist).value[0]),
+		Source: C.GoString(&(*plist).source[0])}
 	return
 }
 
