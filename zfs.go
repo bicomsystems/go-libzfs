@@ -311,21 +311,15 @@ func (d *Dataset) PoolName() string {
 
 // ReloadProperties re-read dataset's properties
 func (d *Dataset) ReloadProperties() (err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
 	d.Properties = make(map[Prop]Property)
 	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
-		var plist *C.property_list_t
-		if prop == DatasetPropMounted || prop == DatasetPropMountpoint {
-			// prevent zfs mountpoint race conditions
-			Global.Mtx.Lock()
-			plist = C.read_dataset_property(d.list, C.int(prop))
-			Global.Mtx.Unlock()
-		} else {
-			plist = C.read_dataset_property(d.list, C.int(prop))
-		}
+		plist := C.read_dataset_property(d.list, C.int(prop))
 		if plist == nil {
 			continue
 		}
@@ -339,14 +333,11 @@ func (d *Dataset) ReloadProperties() (err error) {
 // GetProperty reload and return single specified property. This also reloads requested
 // property in Properties map.
 func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
-	}
-	if p == DatasetPropMounted || p == DatasetPropMountpoint {
-		// prevent zfs mountpoint race conditions
-		Global.Mtx.Lock()
-		defer Global.Mtx.Unlock()
 	}
 	plist := C.read_dataset_property(d.list, C.int(p))
 	if plist == nil {
@@ -362,6 +353,8 @@ func (d *Dataset) GetProperty(p Prop) (prop Property, err error) {
 
 // GetUserProperty - lookup and return user propery
 func (d *Dataset) GetUserProperty(p string) (prop Property, err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
@@ -383,16 +376,13 @@ func (d *Dataset) GetUserProperty(p string) (prop Property, err error) {
 // some can be set only at creation time and some are read only.
 // Always check if returned error and its description.
 func (d *Dataset) SetProperty(p Prop, value string) (err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
 	csValue := C.CString(value)
-	if p == DatasetPropMounted || p == DatasetPropMountpoint {
-		// prevent zfs mountpoint race conditions
-		Global.Mtx.Lock()
-		defer Global.Mtx.Unlock()
-	}
 	errcode := C.dataset_prop_set(d.list, C.zfs_prop_t(p), csValue)
 	C.free(unsafe.Pointer(csValue))
 	if errcode != 0 {
@@ -413,6 +403,8 @@ func (d *Dataset) SetProperty(p Prop, value string) (err error) {
 
 // SetUserProperty -
 func (d *Dataset) SetUserProperty(prop, value string) (err error) {
+	Global.Mtx.Lock()
+	defer Global.Mtx.Unlock()
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
