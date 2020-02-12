@@ -214,7 +214,7 @@ func zfsTestMountPointConcurrency(t *testing.T) {
 	gr1 := make(chan bool)
 	gr2 := make(chan bool)
 	go func() {
-		for i := 0; i < 30; i++ {
+		for i := 0; i < 100; i++ {
 			println("reload properties:", i)
 			// d.SetProperty(zfs.DatasetPropMountpoint, "/TEST")
 			d.ReloadProperties()
@@ -224,11 +224,13 @@ func zfsTestMountPointConcurrency(t *testing.T) {
 	go func() {
 		for i := 0; i < 100; i++ {
 			println("set mountpoint:", i)
-			d.SetProperty(zfs.DatasetPropMountpoint, "/TEST")
+			d.ReloadProperties()
+			// d.SetProperty(zfs.DatasetPropMountpoint, "/TEST")
 			// d.GetProperty(zfs.DatasetPropMountpoint)
 		}
 		gr2 <- true
 	}()
+
 	d.SetProperty(zfs.DatasetPropMountpoint, "none")
 
 	<-gr1
