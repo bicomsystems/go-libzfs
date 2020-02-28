@@ -20,8 +20,8 @@ func TestDataset_DestroyPromote(t *testing.T) {
 		return
 	}
 
-	s1, _ := zfs.DatasetSnapshot(d.Properties[zfs.DatasetPropName].Value+"@snap2", false, props)
-	s2, _ := zfs.DatasetSnapshot(d.Properties[zfs.DatasetPropName].Value+"@snap1", false, props)
+	s1, _ := zfs.DatasetSnapshot(d.Properties[zfs.DatasetPropName].Value+"@snap2", false, props, nil)
+	s2, _ := zfs.DatasetSnapshot(d.Properties[zfs.DatasetPropName].Value+"@snap1", false, props, nil)
 
 	c1, err = s1.Clone(TSTPoolName+"/clone1", nil)
 	if err != nil {
@@ -30,7 +30,7 @@ func TestDataset_DestroyPromote(t *testing.T) {
 		return
 	}
 
-	zfs.DatasetSnapshot(c1.Properties[zfs.DatasetPropName].Value+"@snap1", false, props)
+	zfs.DatasetSnapshot(c1.Properties[zfs.DatasetPropName].Value+"@snap1", false, props, nil)
 
 	c2, err = s2.Clone(TSTPoolName+"/clone2", nil)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestDataset_DestroyPromote(t *testing.T) {
 	}
 	s2.Close()
 
-	zfs.DatasetSnapshot(c2.Properties[zfs.DatasetPropName].Value+"@snap0", false, props)
+	zfs.DatasetSnapshot(c2.Properties[zfs.DatasetPropName].Value+"@snap0", false, props, nil)
 	c1.Close()
 	c2.Close()
 

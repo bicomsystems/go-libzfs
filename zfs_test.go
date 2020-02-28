@@ -138,7 +138,7 @@ func zfsTestDatasetOpenAll(t *testing.T) {
 func zfsTestDatasetSnapshot(t *testing.T) {
 	println("TEST DatasetSnapshot(", TSTDatasetPath, ", true, ...) ... ")
 	props := make(map[zfs.Prop]zfs.Property)
-	d, err := zfs.DatasetSnapshot(TSTDatasetPathSnap, true, props)
+	d, err := zfs.DatasetSnapshot(TSTDatasetPathSnap, true, props, nil)
 	if err != nil {
 		t.Error(err)
 		return
