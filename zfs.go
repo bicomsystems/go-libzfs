@@ -138,7 +138,7 @@ func DatasetOpenSingle(path string) (d Dataset, err error) {
 	return
 }
 
-func datasetPropertiesTonvlist(props map[Prop]Property) (
+func datasetPropertiesTonvlist(props map[Prop]Property, userProps map[string]string) (
 	cprops C.nvlist_ptr, err error) {
 	// convert properties to nvlist C type
 	cprops = C.new_property_nvlist()
@@ -147,16 +147,29 @@ func datasetPropertiesTonvlist(props map[Prop]Property) (
 		return
 	}
 	for prop, value := range props {
-		csValue := C.CString(value.Value)
-		r := C.property_nvlist_add(
-			cprops, C.zfs_prop_to_name(C.zfs_prop_t(prop)), csValue)
-		C.free(unsafe.Pointer(csValue))
-		if r != 0 {
-			err = errors.New("Failed to convert property")
+		if err = addPropertyTonvlist(cprops, C.zfs_prop_to_name(C.zfs_prop_t(prop)), value.Value); err != nil {
 			return
 		}
 	}
+	for prop, value := range userProps {
+		csProp := C.CString(prop)
+		if err = addPropertyTonvlist(cprops, csProp, value); err != nil {
+			C.free(unsafe.Pointer(csProp))
+			return
+		}
+		C.free(unsafe.Pointer(csProp))
+	}
 	return
+}
+
+func addPropertyTonvlist(cprops C.nvlist_ptr, prop *C.char, value string) error {
+	csValue := C.CString(value)
+	r := C.property_nvlist_add(cprops, prop, csValue)
+	C.free(unsafe.Pointer(csValue))
+	if r != 0 {
+		return errors.New("Failed to convert property")
+	}
+	return nil
 }
 
 // DatasetCreate create a new filesystem or volume on path representing
@@ -164,7 +177,7 @@ func datasetPropertiesTonvlist(props map[Prop]Property) (
 func DatasetCreate(path string, dtype DatasetType,
 	props map[Prop]Property) (d Dataset, err error) {
 	var cprops C.nvlist_ptr
-	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props, nil); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
@@ -429,7 +442,7 @@ func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err
 		err = errors.New(msgDatasetIsNil)
 		return
 	}
-	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props, nil); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
@@ -444,9 +457,9 @@ func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err
 }
 
 // DatasetSnapshot create dataset snapshot. Set recur to true to snapshot child datasets.
-func DatasetSnapshot(path string, recur bool, props map[Prop]Property) (rd Dataset, err error) {
+func DatasetSnapshot(path string, recur bool, props map[Prop]Property, userProps map[string]string) (rd Dataset, err error) {
 	var cprops C.nvlist_ptr
-	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
+	if cprops, err = datasetPropertiesTonvlist(props, userProps); err != nil {
 		return
 	}
 	defer C.nvlist_free(cprops)
