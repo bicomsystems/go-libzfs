@@ -59,7 +59,7 @@ func (d *Dataset) openChildren() (err error) {
 	list := C.dataset_list_children(d.list)
 	for list != nil {
 		dataset := Dataset{list: list}
-		dataset.Type = DatasetType(C.dataset_type(d.list))
+		dataset.Type = DatasetType(C.dataset_type(list))
 		dataset.Properties = make(map[Prop]Property)
 		err = dataset.ReloadProperties()
 		if err != nil {
@@ -242,9 +242,7 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 
 // IsSnapshot - retrun true if datset is snapshot
 func (d *Dataset) IsSnapshot() (ok bool) {
-	path := d.Properties[DatasetPropName].Value
-	ok = (d.Type == DatasetTypeSnapshot || strings.Contains(path, "@"))
-	return
+	return d.Type == DatasetTypeSnapshot
 }
 
 // DestroyRecursive recursively destroy children of dataset and dataset.
