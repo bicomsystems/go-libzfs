@@ -59,7 +59,7 @@ func (d *Dataset) openChildren() (err error) {
 	list := C.dataset_list_children(d.list)
 	for list != nil {
 		dataset := Dataset{list: list}
-		dataset.Type = DatasetType(C.dataset_type(d.list))
+		dataset.Type = DatasetType(C.dataset_type(list))
 		dataset.Properties = make(map[Prop]Property)
 		err = dataset.ReloadProperties()
 		if err != nil {
