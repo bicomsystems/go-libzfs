@@ -229,9 +229,7 @@ func (d *Dataset) Destroy(Defer bool) (err error) {
 
 // IsSnapshot - retrun true if datset is snapshot
 func (d *Dataset) IsSnapshot() (ok bool) {
-	path := d.Properties[DatasetPropName].Value
-	ok = (d.Type == DatasetTypeSnapshot || strings.Contains(path, "@"))
-	return
+	return d.Type == DatasetTypeSnapshot
 }
 
 // DestroyRecursive recursively destroy children of dataset and dataset.
