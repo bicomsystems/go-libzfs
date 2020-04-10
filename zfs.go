@@ -320,6 +320,21 @@ func (d *Dataset) PoolName() string {
 	return path[0:i]
 }
 
+// Zsys doesn't need all the properties exposed by ZFS. However
+// ReloadProperties loads and converts to GO structures the entirety of the
+// properties for each dataset which is very expensive.
+// This list contains the properties Zsys is interested in, in order to load
+// only those.
+var zsysOnlyProps = [...]Prop{
+	DatasetPropName,
+	DatasetPropCanmount,
+	DatasetPropMountpoint,
+	DatasetPropOrigin,
+	DatasetPropMounted,
+	DatasetPropCreation,
+	DatasetPropVolsize,
+}
+
 // ReloadProperties re-read dataset's properties
 func (d *Dataset) ReloadProperties() (err error) {
 	Global.Mtx.Lock()
@@ -330,7 +345,7 @@ func (d *Dataset) ReloadProperties() (err error) {
 	}
 	d.Properties = make(map[Prop]Property)
 	C.zfs_refresh_properties(d.list.zh)
-	for prop := DatasetPropType; prop < DatasetNumProps; prop++ {
+	for _, prop := range zsysOnlyProps {
 		plist := C.read_dataset_property(d.list, C.int(prop))
 		if plist == nil {
 			continue
