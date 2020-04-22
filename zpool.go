@@ -59,6 +59,16 @@ const (
 	PoolScanFuncs           // Number of scan functions
 )
 
+// PoolInitializeAction type representing pool initialize action
+type PoolInitializeAction int
+
+// Initialize actions
+const (
+	PoolInitializeStart   PoolInitializeAction = iota // start initialization
+	PoolInitializeCancel                              // cancel initialization
+	PoolInitializeSuspend                             // suspend initialization
+)
+
 // VDevStat - Vdev statistics.  Note: all fields should be 64-bit because this
 // is passed between kernel and userland as an nvlist uint64 array.
 type VDevStat struct {
@@ -1055,6 +1065,50 @@ func (pool *Pool) VDevTree() (vdevs VDevTree, err error) {
 	return
 }
 
+// Initialize - initializes pool
+func (pool *Pool) Initialize() (err error) {
+	return pool.initialize(PoolInitializeStart)
+}
+
+// CancelInitialization - cancels ongoing initialization
+func (pool *Pool) CancelInitialization() (err error) {
+	return pool.initialize(PoolInitializeCancel)
+}
+
+// SuspendInitialization - suspends ongoing initialization
+func (pool *Pool) SuspendInitialization() (err error) {
+	return pool.initialize(PoolInitializeSuspend)
+}
+
+func (pool *Pool) initialize(action PoolInitializeAction) (err error) {
+	var nvroot *C.struct_nvlist
+
+	config := C.zpool_get_config(pool.list.zph, nil)
+	if config == nil {
+		err = fmt.Errorf("Failed zpool_get_config")
+		return
+	}
+	if C.nvlist_lookup_nvlist(config, C.sZPOOL_CONFIG_VDEV_TREE, &nvroot) != 0 {
+		err = fmt.Errorf("Failed to fetch %s", C.ZPOOL_CONFIG_VDEV_TREE)
+		return
+	}
+
+	var vds *C.nvlist_t
+	if r := C.nvlist_alloc(&vds, C.NV_UNIQUE_NAME, 0); r != 0 {
+		err = errors.New("Failed to allocate vdev")
+		return
+	}
+	defer C.nvlist_free(vds)
+
+	C.collect_zpool_leaves(pool.list.zph, nvroot, vds)
+
+	if C.zpool_initialize(pool.list.zph, C.pool_initialize_func_t(action), vds) != 0 {
+		err = fmt.Errorf("Initialization action %s failed", action.String())
+		return
+	}
+	return
+}
+
 func (s PoolState) String() string {
 	switch s {
 	case PoolStateActive:
@@ -1184,5 +1238,18 @@ func (s PoolStatus) String() string {
 		return "OK"
 	default:
 		return "OK"
+	}
+}
+
+func (s PoolInitializeAction) String() string {
+	switch s {
+	case PoolInitializeStart:
+		return "START"
+	case PoolInitializeCancel:
+		return "CANCEL"
+	case PoolInitializeSuspend:
+		return "SUSPEND"
+	default:
+		return "UNKNOWN"
 	}
 }

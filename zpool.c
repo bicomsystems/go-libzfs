@@ -526,3 +526,27 @@ int do_zpool_clear(zpool_list_t *pool, const char *device, u_int32_t load_policy
 
 	return (ret);
 }
+
+void collect_zpool_leaves(zpool_handle_t *zhp, nvlist_t *nvroot, nvlist_t *nv){
+	uint_t children = 0;
+	nvlist_t **child;
+	uint_t i;
+
+	(void) nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children);
+
+	if (children == 0) {
+		char *path = zpool_vdev_name(libzfsHandle, zhp, nvroot,
+		    VDEV_NAME_PATH);
+
+		if (strcmp(path, VDEV_TYPE_INDIRECT) != 0)
+			fnvlist_add_boolean(nv, path);
+
+		free(path);
+		return;
+	}
+
+	for (i = 0; i < children; i++) {
+		collect_zpool_leaves(zhp, child[i], nv);
+	}
+}
