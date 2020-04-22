@@ -5,8 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
-	"github.com/bicomsystems/go-libzfs"
+	zfs "github.com/bicomsystems/go-libzfs"
 )
 
 /* ------------------------------------------------------------------------- */
@@ -359,6 +360,40 @@ func zpoolTestPoolVDevTree(t *testing.T) {
 	fmt.Printf("%-30s | %-10s | %-10s | %s\n", "NAME", "TYPE", "STATE", "PATH")
 	println("---------------------------------------------------------------")
 	printVDevTree(vdevs, "")
+	print("PASS\n\n")
+}
+
+func zpoolTestInitialization(t *testing.T) {
+	println("TEST POOL Initialization ( ", TSTPoolName, " ) ... ")
+	pool, err := zfs.PoolOpen(TSTPoolName)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	defer pool.Close()
+
+	err = pool.Initialize()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	time.Sleep(1 * time.Second)
+	err = pool.SuspendInitialization()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	err = pool.Initialize()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
+	time.Sleep(1 * time.Second)
+	err = pool.CancelInitialization()
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	print("PASS\n\n")
 }
 

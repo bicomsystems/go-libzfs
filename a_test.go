@@ -13,6 +13,7 @@ func Test(t *testing.T) {
 	zpoolTestExport(t)
 	zpoolTestPoolImportSearch(t)
 	zpoolTestImport(t)
+	zpoolTestInitialization(t)
 	zpoolTestExportForce(t)
 	zpoolTestImportByGUID(t)
 	zpoolTestPoolProp(t)
