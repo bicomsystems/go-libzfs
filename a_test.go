@@ -26,7 +26,10 @@ func Test(t *testing.T) {
 	// zfsTestMountPointConcurrency(t)
 	// time.Sleep(15 * time.Second)
 
+	zfsTestResumeTokenUnpack(t)
+
 	zfsTestDatasetSnapshot(t)
+	zfsTestSendSize(t)
 	zfsTestDatasetOpenAll(t)
 	zfsTestDatasetSetProperty(t)
 	zfsTestDatasetHoldRelease(t)
