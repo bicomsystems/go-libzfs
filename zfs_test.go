@@ -188,6 +188,38 @@ func zfsTestDatasetHoldRelease(t *testing.T) {
 	print("PASS\n\n")
 }
 
+func zfsTestSendSize(t *testing.T) {
+	var size int64
+	println("TEST SendSize(", TSTDatasetPathSnap, ") ... ")
+	d, err := zfs.DatasetOpen(TSTDatasetPathSnap)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer d.Close()
+	if size, err = d.SendSize("", zfs.SendFlags{Compress: true}); err != nil {
+		t.Error(err)
+		return
+	}
+	if size <= 0 {
+		t.Error(fmt.Errorf("Failed to fetch size. size = %d", size))
+		return
+	}
+	print("PASS\n\n")
+}
+
+func zfsTestResumeTokenUnpack(t *testing.T) {
+	var resToken zfs.ResumeToken
+	println("TEST ResumeTokenUnpack ... ")
+	err := resToken.Unpack("1-2111998041-170-789c636064000310a501c49c50360710a715e5e7a69766a6304001bfd66a579708b10d0a40363b92bafca4acd4e412081f0430e4d3d28a5381f20c0f94f218a1f26c48f2499525a9c540fac6d3fd6cd8f497e4435cb1f891ebba68d955ce3390e439c1f27989b9a90c0c7eae21c121fe41fa29f9b9899979bae646a98966c9166686c9496926262969894606a64966e629a686466946268689fa65f939bac9c996e68646a906e606962926a949e696c989a6a989468926a99666264646e60ec995c939a9ba86c6c98986494666692649294926e6a916c9498929c646c64916408d40d3e1fee666408467727e6e41516a71717e36031c0000cb4c43f4")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	println("ResumeToken:", fmt.Sprintf("%v", resToken))
+	return
+}
+
 func zfsTestDatasetDestroy(t *testing.T) {
 	println("TEST DATASET Destroy( ", TSTDatasetPath, " ) ... ")
 	d, err := zfs.DatasetOpen(TSTDatasetPath)
