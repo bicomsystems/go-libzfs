@@ -47,6 +47,21 @@ type RecvFlags struct {
 	ByteSwap    bool
 }
 
+// ResumeToken - informations extracted from resume token
+type ResumeToken struct {
+	ToName     string
+	FromName   string
+	Object     uint64
+	Offset     uint64
+	ToGUID     uint64
+	FromGUID   uint64
+	Bytes      uint64
+	LargeBlock bool
+	EmbedOk    bool
+	CompressOk bool
+	RawOk      bool
+}
+
 func to_boolean_t(a bool) C.boolean_t {
 	if a {
 		return 1
@@ -316,5 +331,78 @@ func (d *Dataset) Receive(inf *os.File, flags RecvFlags) (err error) {
 	if ec != 0 {
 		err = fmt.Errorf("ZFS receive of %s failed. %s", C.GoString(dest), LastError().Error())
 	}
+	return
+}
+
+// Unpack unpack resume token
+func (rt *ResumeToken) Unpack(token string) (err error) {
+	ctoken := C.CString(token)
+	defer C.free(unsafe.Pointer(ctoken))
+	resume_nvl := C.zfs_send_resume_token_to_nvlist(C.libzfsHandle, ctoken)
+	defer C.nvlist_free(resume_nvl)
+	if resume_nvl == nil {
+		err = fmt.Errorf("Failed to unpack resume token: %s", LastError().Error())
+		return
+	}
+	if rt.ToName, err = rt.lookupString(resume_nvl, "toname"); err != nil {
+		return
+	}
+	rt.FromName, _ = rt.lookupString(resume_nvl, "fromname")
+
+	if rt.Object, err = rt.lookupUnit64(resume_nvl, "object"); err != nil {
+		return
+	}
+	if rt.Offset, err = rt.lookupUnit64(resume_nvl, "offset"); err != nil {
+		return
+	}
+	if rt.Bytes, err = rt.lookupUnit64(resume_nvl, "bytes"); err != nil {
+		return
+	}
+	if rt.ToGUID, err = rt.lookupUnit64(resume_nvl, "toguid"); err != nil {
+		return
+	}
+
+	rt.FromGUID, _ = rt.lookupUnit64(resume_nvl, "fromguid")
+
+	rt.LargeBlock = rt.exist(resume_nvl, "largeblockok")
+	rt.EmbedOk = rt.exist(resume_nvl, "embedok")
+	rt.CompressOk = rt.exist(resume_nvl, "compressok")
+	rt.RawOk = rt.exist(resume_nvl, "rawok")
+
+	return
+}
+
+func (rt *ResumeToken) lookupString(nvl *C.nvlist_t, key string) (val string, err error) {
+	var cstr *C.char
+	ckey := C.CString(key)
+	defer C.free(unsafe.Pointer(ckey))
+	defer C.free(unsafe.Pointer(cstr))
+	rc := C.nvlist_lookup_string(nvl, ckey, &cstr)
+	if rc != 0 {
+		err = fmt.Errorf("resume token is corrupt")
+		return
+	}
+	val = C.GoString(cstr)
+	return
+}
+
+func (rt *ResumeToken) lookupUnit64(nvl *C.nvlist_t, key string) (val uint64, err error) {
+	var num C.uint64_t
+	ckey := C.CString(key)
+	defer C.free(unsafe.Pointer(ckey))
+	rc := C.nvlist_lookup_uint64(nvl, ckey, &num)
+	if rc != 0 {
+		err = fmt.Errorf("resume token is corrupt")
+		return
+	}
+	val = uint64(num)
+	return
+}
+
+func (rt *ResumeToken) exist(nvl *C.nvlist_t, key string) (val bool) {
+	ckey := C.CString(key)
+	defer C.free(unsafe.Pointer(ckey))
+	rc := C.nvlist_exists(nvl, ckey)
+	val = (rc != 0)
 	return
 }
