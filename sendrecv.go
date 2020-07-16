@@ -19,6 +19,7 @@ import (
 	"unsafe"
 )
 
+// SendFlags send flags
 type SendFlags struct {
 	Verbose    bool // -v
 	Replicate  bool // -R
@@ -28,12 +29,16 @@ type SendFlags struct {
 	Props      bool // -p
 	DryRun     bool // -n
 	Parsable   bool // -P
+	Progress   bool // show progress (ie. -v)
 	LargeBlock bool // -L
 	EmbedData  bool // -e
 	Compress   bool // -c
-	Progress   bool
+	Raw        bool // raw encrypted records are permitted
+	Backup     bool // only send received properties (ie. -b)
+	Holds      bool // include snapshot holds in send stream
 }
 
+// RecvFlags  receive flags
 type RecvFlags struct {
 	Verbose     bool // -v
 	IsPrefix    bool // -d
@@ -55,7 +60,7 @@ func to_boolean_t(a bool) C.boolean_t {
 
 func to_sendflags_t(flags *SendFlags) (cflags *C.sendflags_t) {
 	cflags = C.alloc_sendflags()
-	// cflags.verbose = to_boolean_t(flags.Verbose)
+	cflags.verbose = to_boolean_t(flags.Verbose)
 	cflags.replicate = to_boolean_t(flags.Replicate)
 	cflags.doall = to_boolean_t(flags.DoAll)
 	cflags.fromorigin = to_boolean_t(flags.FromOrigin)
@@ -67,6 +72,9 @@ func to_sendflags_t(flags *SendFlags) (cflags *C.sendflags_t) {
 	cflags.largeblock = to_boolean_t(flags.LargeBlock)
 	cflags.embed_data = to_boolean_t(flags.EmbedData)
 	cflags.compress = to_boolean_t(flags.Compress)
+	cflags.raw = to_boolean_t(flags.Raw)
+	cflags.backup = to_boolean_t(flags.Backup)
+	cflags.holds = to_boolean_t(flags.Holds)
 	return
 }
 
