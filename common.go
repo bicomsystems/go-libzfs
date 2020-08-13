@@ -308,8 +308,8 @@ func booleanT(b bool) (r C.boolean_t) {
 
 // ZFS errors
 const (
-	ESuccess            = 0            /* no error -- success */
-	ENomem              = 2000 << iota /* out of memory */
+	ESuccess         = 0               /* no error -- success */
+	ENomem           = 2000 + iota - 1 /* out of memory */
 	EBadprop                           /* invalid property value */
 	EPropreadonly                      /* cannot set readonly property */
 	EProptype                          /* property does not apply to dataset type */
@@ -379,6 +379,25 @@ const (
 	EDiff                              /* general failure of zfs diff */
 	EDiffdata                          /* bad zfs diff data */
 	EPoolreadonly                      /* pool is in read-only mode */
+	EScrubpaused                       /* scrub currently paused */
+	EActivepool                        /* pool is imported on a different system */
+	ECryptofailed                      /* failed to setup encryption */
+	ENopending                         /* cannot cancel, no operation is pending */
+	ECheckpointExists                  /* checkpoint exists */
+	EDiscardingCheckpoint              /* currently discarding a checkpoint */
+	ENoCheckpoint                      /* pool has no checkpoint */
+	EDevrmInProgress                   /* a device is currently being removed */
+	EVdevTooBig                        /* a device is too big to be used */
+	EIocNotsupported                   /* operation not supported by zfs module */
+	EToomany	                   /* argument list too long */
+	EInitializing                      /* currently initializing */
+	ENoInitialize                      /* no active initialize */
+	EWrongParent                       /* invalid parent dataset (e.g ZVOL) */
+	ETrimming                          /* currently trimming */
+	ENoTrim                            /* no active trim */
+	ETrimNotsup                        /* device does not support trim */
+	ENoResilverDefer                   /* pool doesn't support resilver_defer */
+	EExportInProgress                  /* currently exporting the pool */
 	EUnknown
 )
 
