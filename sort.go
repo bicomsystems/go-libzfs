@@ -4,7 +4,7 @@ import (
 	"strconv"
 )
 
-type clonesCreateDesc []Dataset
+type clonesCreateDesc []*Dataset
 
 func (list clonesCreateDesc) Less(i, j int) bool {
 	_, oki := list[i].Properties[DatasetNumProps+1000]

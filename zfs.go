@@ -51,35 +51,39 @@ type Dataset struct {
 	list       C.dataset_list_ptr
 	Type       DatasetType
 	Properties map[Prop]Property
-	Children   []Dataset
+	Children   []*Dataset
+	closed     bool
 }
 
-func (d *Dataset) openChildren() (err error) {
-	d.Children = make([]Dataset, 0, 5)
+func (d *Dataset) openChildren() error {
+	d.Children = make([]*Dataset, 0, 5)
 	list := C.dataset_list_children(d.list)
 	for list != nil {
-		dataset := Dataset{list: list}
-		dataset.Type = DatasetType(C.dataset_type(list))
-		dataset.Properties = make(map[Prop]Property)
-		err = dataset.ReloadProperties()
-		if err != nil {
-			return
+		dataset := &Dataset{
+			list:       list,
+			Type:       DatasetType(C.dataset_type(list)),
+			Properties: make(map[Prop]Property),
 		}
+
+		if err := dataset.ReloadProperties(); err != nil {
+			return err
+		}
+
 		d.Children = append(d.Children, dataset)
 		list = C.dataset_next(list)
 	}
-	for ci := range d.Children {
-		if err = d.Children[ci].openChildren(); err != nil {
-			return
+	for _, child := range d.Children {
+		if err := child.openChildren(); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 // DatasetOpenAll recursive get handles to all available datasets on system
 // (file-systems, volumes or snapshots).
-func DatasetOpenAll() (datasets []Dataset, err error) {
-	var dataset Dataset
+func DatasetOpenAll() (datasets []*Dataset, err error) {
+	dataset := &Dataset{}
 	dataset.list = C.dataset_list_root()
 	for dataset.list != nil {
 		dataset.Type = DatasetType(C.dataset_type(dataset.list))
@@ -88,7 +92,7 @@ func DatasetOpenAll() (datasets []Dataset, err error) {
 			return
 		}
 		datasets = append(datasets, dataset)
-		dataset.list = C.dataset_next(dataset.list)
+		dataset = &Dataset{list: C.dataset_next(dataset.list)}
 	}
 	for ci := range datasets {
 		if err = datasets[ci].openChildren(); err != nil {
@@ -100,14 +104,14 @@ func DatasetOpenAll() (datasets []Dataset, err error) {
 
 // DatasetCloseAll close all datasets in slice and all of its recursive
 // children datasets
-func DatasetCloseAll(datasets []Dataset) {
+func DatasetCloseAll(datasets []*Dataset) {
 	for _, d := range datasets {
 		d.Close()
 	}
 }
 
 // DatasetOpen open dataset and all of its recursive children datasets
-func DatasetOpen(path string) (d Dataset, err error) {
+func DatasetOpen(path string) (d *Dataset, err error) {
 	if d, err = DatasetOpenSingle(path); err != nil {
 		return
 	}
@@ -117,25 +121,27 @@ func DatasetOpen(path string) (d Dataset, err error) {
 
 // DatasetOpenSingle open dataset without opening all of its recursive
 // children datasets
-func DatasetOpenSingle(path string) (d Dataset, err error) {
+func DatasetOpenSingle(path string) (*Dataset, error) {
+	d := &Dataset{}
 	csPath := C.CString(path)
 	d.list = C.dataset_open(csPath)
 	C.free(unsafe.Pointer(csPath))
 
 	if d.list == nil || d.list.zh == nil {
-		err = LastError()
+		err := LastError()
 		if err == nil {
 			err = fmt.Errorf("dataset not found")
 		}
 		err = fmt.Errorf("%s - %s", err.Error(), path)
-		return
+		return nil, err
 	}
+
 	d.Type = DatasetType(C.dataset_type(d.list))
-	err = d.ReloadProperties()
-	if err != nil {
-		return
+
+	if err := d.ReloadProperties(); err != nil {
+		return nil, err
 	}
-	return
+	return d, nil
 }
 
 func datasetPropertiesTonvlist(props map[Prop]Property) (
@@ -162,7 +168,7 @@ func datasetPropertiesTonvlist(props map[Prop]Property) (
 // DatasetCreate create a new filesystem or volume on path representing
 // pool/dataset or pool/parent/dataset
 func DatasetCreate(path string, dtype DatasetType,
-	props map[Prop]Property) (d Dataset, err error) {
+	props map[Prop]Property) (d *Dataset, err error) {
 	var cprops C.nvlist_ptr
 	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
 		return
@@ -184,8 +190,13 @@ func DatasetCreate(path string, dtype DatasetType,
 func (d *Dataset) Close() {
 	// path, _ := d.Path()
 	Global.Mtx.Lock()
-	C.dataset_list_close(d.list)
-	d.list = nil
+	if !d.closed {
+		if d.list != nil {
+			C.dataset_list_close(d.list)
+		}
+		d.list = nil
+		d.closed = true
+	}
 	Global.Mtx.Unlock()
 	for _, cd := range d.Children {
 		cd.Close()
@@ -195,7 +206,7 @@ func (d *Dataset) Close() {
 // reOpen - close and open dataset. Not thread safe!
 func (d *Dataset) reOpen() (err error) {
 	d.Close()
-	*d, err = DatasetOpen(d.Properties[DatasetPropName].Value)
+	d, err = DatasetOpen(d.Properties[DatasetPropName].Value)
 	return
 }
 
@@ -250,11 +261,11 @@ func (d *Dataset) DestroyRecursive() (err error) {
 				c.Close()
 			}
 			// clear closed children array
-			d.Children = make([]Dataset, 0)
+			d.Children = make([]*Dataset, 0)
 		}
 		err = d.Destroy(false)
 	} else {
-		var parent Dataset
+		var parent *Dataset
 		tmp := strings.Split(path, "@")
 		ppath, snapname := tmp[0], tmp[1]
 		if parent, err = DatasetOpen(ppath); err != nil {
@@ -423,7 +434,7 @@ func (d *Dataset) SetUserProperty(prop, value string) (err error) {
 
 // Clone - clones the dataset.  The target must be of the same type as
 // the source.
-func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err error) {
+func (d *Dataset) Clone(target string, props map[Prop]Property) (rd *Dataset, err error) {
 	var cprops C.nvlist_ptr
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
@@ -444,7 +455,7 @@ func (d *Dataset) Clone(target string, props map[Prop]Property) (rd Dataset, err
 }
 
 // DatasetSnapshot create dataset snapshot. Set recur to true to snapshot child datasets.
-func DatasetSnapshot(path string, recur bool, props map[Prop]Property) (rd Dataset, err error) {
+func DatasetSnapshot(path string, recur bool, props map[Prop]Property) (rd *Dataset, err error) {
 	var cprops C.nvlist_ptr
 	if cprops, err = datasetPropertiesTonvlist(props); err != nil {
 		return
@@ -585,7 +596,7 @@ func (d *Dataset) UnmountAll(flags int) (err error) {
 // Each snapshot has its own tag namespace, and tags must be unique within that space.
 func (d *Dataset) Hold(flag string) (err error) {
 	var path string
-	var pd Dataset
+	var pd *Dataset
 	if path, err = d.Path(); err != nil {
 		return
 	}
@@ -613,7 +624,7 @@ func (d *Dataset) Hold(flag string) (err error) {
 //  that snapshot by using the zfs destroy command return EBUSY.
 func (d *Dataset) Release(flag string) (err error) {
 	var path string
-	var pd Dataset
+	var pd *Dataset
 	if path, err = d.Path(); err != nil {
 		return
 	}
@@ -690,7 +701,7 @@ func DatasetPropertyToName(p Prop) (name string) {
 // However it will destroy all snaphsot of destroyed dataset without dependencies,
 // otherwise snapshot will move to promoted clone
 func (d *Dataset) DestroyPromote() (err error) {
-	var snaps []Dataset
+	var snaps []*Dataset
 	var clones []string
 	// We need to save list of child snapshots, to destroy them latter
 	// since  they will be moved to promoted clone
@@ -699,7 +710,7 @@ func (d *Dataset) DestroyPromote() (err error) {
 		return
 	}
 	if len(clones) > 0 {
-		var cds Dataset
+		var cds *Dataset
 		// For this to always work we need to promote youngest clone
 		// in terms of most recent origin snapshot or creation time if
 		// cloned from same snapshot
@@ -736,13 +747,13 @@ func (d *Dataset) DestroyPromote() (err error) {
 			return
 		}
 	}
-	d.Children = make([]Dataset, 0)
+	d.Children = make([]*Dataset, 0)
 	if err = d.Destroy(false); err != nil {
 		return
 	}
 	// Load with new promoted snapshots
 	if len(clones) > 0 && len(psnaps) > 0 {
-		var cds Dataset
+		var cds *Dataset
 		if cds, err = DatasetOpen(clones[0]); err != nil {
 			return
 		}
@@ -758,7 +769,7 @@ func (d *Dataset) DestroyPromote() (err error) {
 }
 
 // Snapshots - filter and return all snapshots of dataset
-func (d *Dataset) Snapshots() (snaps []Dataset, err error) {
+func (d *Dataset) Snapshots() (snaps []*Dataset, err error) {
 	for _, ch := range d.Children {
 		if !ch.IsSnapshot() {
 			continue
@@ -769,7 +780,7 @@ func (d *Dataset) Snapshots() (snaps []Dataset, err error) {
 }
 
 // FindSnapshot - returns true if given path is one of dataset snaphsots
-func (d *Dataset) FindSnapshot(path string) (ok bool, snap Dataset) {
+func (d *Dataset) FindSnapshot(path string) (ok bool, snap *Dataset) {
 	for _, ch := range d.Children {
 		if !ch.IsSnapshot() {
 			continue
@@ -784,7 +795,7 @@ func (d *Dataset) FindSnapshot(path string) (ok bool, snap Dataset) {
 
 // FindSnapshotName - returns true and snapshot if given snapshot
 // name eg. '@snap1' is one of dataset snaphsots
-func (d *Dataset) FindSnapshotName(name string) (ok bool, snap Dataset) {
+func (d *Dataset) FindSnapshotName(name string) (ok bool, snap *Dataset) {
 	return d.FindSnapshot(d.Properties[DatasetPropName].Value + name)
 }
 
@@ -793,15 +804,15 @@ func (d *Dataset) FindSnapshotName(name string) (ok bool, snap Dataset) {
 // List is sorted descedent by origin snapshot order
 func (d *Dataset) Clones() (clones []string, err error) {
 	// Clones can only live on same pool
-	var root Dataset
-	var sortDesc []Dataset
+	var root *Dataset
+	var sortDesc []*Dataset
 	if root, err = DatasetOpen(d.PoolName()); err != nil {
 		return
 	}
 	defer root.Close()
 	dIsSnapshot := d.IsSnapshot()
 	// USe breadth first search to find all clones
-	queue := make(chan Dataset, 1024)
+	queue := make(chan *Dataset, 1024)
 	defer close(queue) // This will close and cleanup all
 	queue <- root      // start from the root element
 	for {

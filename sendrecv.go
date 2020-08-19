@@ -110,7 +110,7 @@ func to_recvflags_t(flags *RecvFlags) (cflags *C.recvflags_t) {
 func (d *Dataset) send(FromName string, outf *os.File, flags *SendFlags) (err error) {
 	var cfromname, ctoname *C.char
 	var dpath string
-	var pd Dataset
+	var pd *Dataset
 
 	if d.Type != DatasetTypeSnapshot || (len(FromName) > 0 && strings.Contains(FromName, "#")) {
 		err = fmt.Errorf(
@@ -157,7 +157,7 @@ func (d *Dataset) SendResume(outf *os.File, flags *SendFlags, receiveResumeToken
 	}
 
 	var dpath string
-	var pd Dataset
+	var pd *Dataset
 
 	cflags := to_sendflags_t(flags)
 	defer C.free(unsafe.Pointer(cflags))
