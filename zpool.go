@@ -115,6 +115,7 @@ type VDevTree struct {
 	Spares   []VDevTree
 	L2Cache  []VDevTree
 	Logs     *VDevTree
+	GUID     uint64
 	Parity   uint
 	Path     string
 	Name     string
@@ -177,6 +178,8 @@ func poolGetConfig(name string, nv C.nvlist_ptr) (vdevs VDevTree, err error) {
 	if vdevs.Type == VDevTypeMissing || vdevs.Type == VDevTypeHole {
 		return
 	}
+
+	vdevs.GUID = uint64(C.get_vdev_guid(nv))
 
 	// Fetch vdev state
 	if vs = C.get_vdev_stats(nv); vs == nil {
