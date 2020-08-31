@@ -378,6 +378,12 @@ const char *get_vdev_type(nvlist_ptr nv) {
 	return value;
 }
 
+uint64_t get_vdev_guid(nvlist_ptr nv) {
+	uint64_t value = 0;
+	nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &value);
+	return value;
+}
+
 const vdev_stat_ptr get_vdev_stats(nvlist_ptr nv) {
 	vdev_stat_ptr vs = NULL;
 	uint_t count;
