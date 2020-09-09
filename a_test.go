@@ -34,6 +34,7 @@ func Test(t *testing.T) {
 	zfsTestDatasetSetProperty(t)
 	zfsTestDatasetHoldRelease(t)
 
+	zfsTestDoubleFreeOnDestroy(t)
 	zfsTestDatasetDestroy(t)
 
 	zpoolTestPoolDestroy(t)
