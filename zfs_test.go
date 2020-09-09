@@ -338,3 +338,35 @@ func ExampleDatasetOpenAll() {
 	}
 
 }
+
+func CopyAndDestroy(d *zfs.Dataset) (err error) {
+	if err = d.Destroy(false); err != nil {
+		return
+	}
+	d.Close()
+	return
+}
+
+func zfsTestDoubleFreeOnDestroy(t *testing.T) {
+	TSTDestroyPath := TSTPoolName + "/DESTROY"
+	println("TEST Doble Free On Destroy( ", TSTVolumePath, " ) ... ")
+	props := make(map[zfs.Prop]zfs.Property)
+	d, err := zfs.DatasetCreate(TSTDestroyPath, zfs.DatasetTypeFilesystem, props)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	d.Close()
+
+	d, err = zfs.DatasetOpen(TSTDestroyPath)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer d.Close()
+	if err = CopyAndDestroy(&d); err != nil {
+		t.Error(err)
+		return
+	}
+	print("PASS\n\n")
+}

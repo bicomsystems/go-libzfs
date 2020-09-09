@@ -60,4 +60,5 @@ func TestDataset_DestroyPromote(t *testing.T) {
 	t.Log("Destroy promote completed with success")
 	d.Close()
 	zpoolTestPoolDestroy(t)
+	cleanupVDisks()
 }

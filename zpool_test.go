@@ -51,12 +51,18 @@ func createTestpoolVdisks() (err error) {
 	return
 }
 
+func removeVDisk(path string) {
+	if err := os.Remove(path); err != nil {
+		println("Error: ", err.Error())
+	}
+}
+
 // Cleanup sparse files used for tests
 func cleanupVDisks() {
 	// try cleanup
-	os.Remove(s1path)
-	os.Remove(s2path)
-	os.Remove(s3path)
+	removeVDisk(s1path)
+	removeVDisk(s2path)
+	removeVDisk(s3path)
 }
 
 /* ------------------------------------------------------------------------- */

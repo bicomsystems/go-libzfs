@@ -13,6 +13,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -49,6 +50,7 @@ type HoldTag struct {
 // Dataset - ZFS dataset object
 type Dataset struct {
 	list       C.dataset_list_ptr
+	closeOnce  *sync.Once
 	Type       DatasetType
 	Properties map[Prop]Property
 	Children   []Dataset
@@ -58,7 +60,7 @@ func (d *Dataset) openChildren() (err error) {
 	d.Children = make([]Dataset, 0, 5)
 	list := C.dataset_list_children(d.list)
 	for list != nil {
-		dataset := Dataset{list: list}
+		dataset := Dataset{list: list, closeOnce: new(sync.Once)}
 		dataset.Type = DatasetType(C.dataset_type(list))
 		dataset.Properties = make(map[Prop]Property)
 		err = dataset.ReloadProperties()
@@ -79,16 +81,20 @@ func (d *Dataset) openChildren() (err error) {
 // DatasetOpenAll recursive get handles to all available datasets on system
 // (file-systems, volumes or snapshots).
 func DatasetOpenAll() (datasets []Dataset, err error) {
-	var dataset Dataset
-	dataset.list = C.dataset_list_root()
-	for dataset.list != nil {
-		dataset.Type = DatasetType(C.dataset_type(dataset.list))
+	list := C.dataset_list_root()
+	for list != nil {
+		dataset := Dataset{
+			list:      list,
+			closeOnce: new(sync.Once),
+			Type:      DatasetType(C.dataset_type(list)),
+		}
+		dataset.Type = DatasetType(C.dataset_type(list))
 		err = dataset.ReloadProperties()
 		if err != nil {
 			return
 		}
 		datasets = append(datasets, dataset)
-		dataset.list = C.dataset_next(dataset.list)
+		list = C.dataset_next(list)
 	}
 	for ci := range datasets {
 		if err = datasets[ci].openChildren(); err != nil {
@@ -130,6 +136,7 @@ func DatasetOpenSingle(path string) (d Dataset, err error) {
 		err = fmt.Errorf("%s - %s", err.Error(), path)
 		return
 	}
+	d.closeOnce = new(sync.Once)
 	d.Type = DatasetType(C.dataset_type(d.list))
 	err = d.ReloadProperties()
 	if err != nil {
@@ -182,11 +189,13 @@ func DatasetCreate(path string, dtype DatasetType,
 // Close close dataset and all its recursive children datasets (close handle
 // and cleanup dataset object/s from memory)
 func (d *Dataset) Close() {
-	// path, _ := d.Path()
-	Global.Mtx.Lock()
-	C.dataset_list_close(d.list)
+	// if dataset was ever open
+	if d.closeOnce != nil {
+		d.closeOnce.Do(func() {
+			C.dataset_list_close(d.list)
+		})
+	}
 	d.list = nil
-	Global.Mtx.Unlock()
 	for _, cd := range d.Children {
 		cd.Close()
 	}
