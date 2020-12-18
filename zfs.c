@@ -133,7 +133,8 @@ int dataset_promote(dataset_list_ptr dataset) {
 }
 
 int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t recur, boolean_t force_unm) {
-	return zfs_rename(dataset->zh, new_name, recur, force_unm);
+	renameflags_t flags = {.recursive = recur?1:0, .forceunmount = force_unm?1:0};
+	return zfs_rename(dataset->zh, new_name, flags);
 }
 
 const char *dataset_is_mounted(dataset_list_ptr dataset){
