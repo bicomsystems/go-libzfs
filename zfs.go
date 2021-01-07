@@ -56,6 +56,16 @@ type Dataset struct {
 	Children   []Dataset
 }
 
+// RenameFlags structure contains information for ZFS 2.0.x Rename Dataset feature
+type RenameFlags struct {
+	// Recursive rename
+	Recursive bool
+	// Do not unmount file systems
+	Nounmount bool
+	// Force unmount file systems
+	Forceunmount bool
+}
+
 func (d *Dataset) openChildren() (err error) {
 	d.Children = make([]Dataset, 0, 5)
 	list := C.dataset_list_children(d.list)
@@ -518,7 +528,24 @@ func (d *Dataset) Rename(newName string, recur,
 	csNewName := C.CString(newName)
 	defer C.free(unsafe.Pointer(csNewName))
 	if errc := C.dataset_rename(d.list, csNewName,
-		booleanT(recur), booleanT(forceUnmount)); errc != 0 {
+		booleanT(recur), booleanT(false), booleanT(forceUnmount)); errc != 0 {
+		err = LastError()
+		return
+	}
+	d.ReloadProperties()
+	return
+}
+
+// Rename2 dataset for ZFS 2.0.x with an option to rename a filesystem without needing to remount
+func (d *Dataset) Rename2(newName string, flags RenameFlags) (err error) {
+	if d.list == nil {
+		err = errors.New(msgDatasetIsNil)
+		return
+	}
+	csNewName := C.CString(newName)
+	defer C.free(unsafe.Pointer(csNewName))
+	if errc := C.dataset_rename(d.list, csNewName,
+		booleanT(flags.Recursive), booleanT(flags.Nounmount), booleanT(flags.Forceunmount)); errc != 0 {
 		err = LastError()
 		return
 	}
