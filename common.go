@@ -69,6 +69,7 @@ type Property struct {
 	Source string
 }
 
+// Global - global objects
 var Global struct {
 	Mtx sync.Mutex
 }
@@ -94,7 +95,7 @@ const (
 	PoolStatusHostidRequired                      /* multihost=on and hostid=0 */
 	PoolStatusIoFailureWait                       /* failed I/O, failmode 'wait' */
 	PoolStatusIoFailureContinue                   /* failed I/O, failmode 'continue' */
-	PoolStatusIOFailureMap                        /* ailed MMP, failmode not 'panic' */
+	PoolStatusIOFailureMMP                        /* ailed MMP, failmode not 'panic' */
 	PoolStatusBadLog                              /* cannot read log chain(s) */
 	PoolStatusErrata                              /* informational errata available */
 
@@ -120,11 +121,14 @@ const (
 	 * requiring administrative attention.  There is no corresponding
 	 * message ID.
 	 */
-	PoolStatusVersionOlder /* older legacy on-disk version */
-	PoolStatusFeatDisabled /* supported features are disabled */
-	PoolStatusResilvering  /* device being resilvered */
-	PoolStatusOfflineDev   /* device online */
-	PoolStatusRemovedDev   /* removed device */
+	PoolStatusVersionOlder    /* older legacy on-disk version */
+	PoolStatusFeatDisabled    /* supported features are disabled */
+	PoolStatusResilvering     /* device being resilvered */
+	PoolStatusOfflineDev      /* device offline */
+	PoolStatusRemovedDev      /* removed device */
+	PoolStatusRebuilding      /* device being rebuilt */
+	PoolStatusRebuildScrub    /* recommend scrubbing the pool */
+	PoolStatusNonNativeAshift /* (e.g. 512e dev with ashift of 9) */
 
 	/*
 	 * Finally, the following indicates a healthy pool.
@@ -179,7 +183,7 @@ const (
 	PoolPropMaxNodeSize
 	PoolPropMultiHost
 	PoolPropCheckpoint
-	PoolPropLoadGuid
+	PoolPropLoadGUID
 	PoolPropAutotrim
 	PoolNumProps
 )
@@ -308,96 +312,96 @@ func booleanT(b bool) (r C.boolean_t) {
 
 // ZFS errors
 const (
-	ESuccess         = 0               /* no error -- success */
-	ENomem           = 2000 + iota - 1 /* out of memory */
-	EBadprop                           /* invalid property value */
-	EPropreadonly                      /* cannot set readonly property */
-	EProptype                          /* property does not apply to dataset type */
-	EPropnoninherit                    /* property is not inheritable */
-	EPropspace                         /* bad quota or reservation */
-	EBadtype                           /* dataset is not of appropriate type */
-	EBusy                              /* pool or dataset is busy */
-	EExists                            /* pool or dataset already exists */
-	ENoent                             /* no such pool or dataset */
-	EBadstream                         /* bad backup stream */
-	EDsreadonly                        /* dataset is readonly */
-	EVoltoobig                         /* volume is too large for 32-bit system */
-	EInvalidname                       /* invalid dataset name */
-	EBadrestore                        /* unable to restore to destination */
-	EBadbackup                         /* backup failed */
-	EBadtarget                         /* bad attach/detach/replace target */
-	ENodevice                          /* no such device in pool */
-	EBaddev                            /* invalid device to add */
-	ENoreplicas                        /* no valid replicas */
-	EResilvering                       /* currently resilvering */
-	EBadversion                        /* unsupported version */
-	EPoolunavail                       /* pool is currently unavailable */
-	EDevoverflow                       /* too many devices in one vdev */
-	EBadpath                           /* must be an absolute path */
-	ECrosstarget                       /* rename or clone across pool or dataset */
-	EZoned                             /* used improperly in local zone */
-	EMountfailed                       /* failed to mount dataset */
-	EUmountfailed                      /* failed to unmount dataset */
-	EUnsharenfsfailed                  /* unshare(1M) failed */
-	ESharenfsfailed                    /* share(1M) failed */
-	EPerm                              /* permission denied */
-	ENospc                             /* out of space */
-	EFault                             /* bad address */
-	EIo                                /* I/O error */
-	EIntr                              /* signal received */
-	EIsspare                           /* device is a hot spare */
-	EInvalconfig                       /* invalid vdev configuration */
-	ERecursive                         /* recursive dependency */
-	ENohistory                         /* no history object */
-	EPoolprops                         /* couldn't retrieve pool props */
-	EPoolNotsup                        /* ops not supported for this type of pool */
-	EPoolInvalarg                      /* invalid argument for this pool operation */
-	ENametoolong                       /* dataset name is too long */
-	EOpenfailed                        /* open of device failed */
-	ENocap                             /* couldn't get capacity */
-	ELabelfailed                       /* write of label failed */
-	EBadwho                            /* invalid permission who */
-	EBadperm                           /* invalid permission */
-	EBadpermset                        /* invalid permission set name */
-	ENodelegation                      /* delegated administration is disabled */
-	EUnsharesmbfailed                  /* failed to unshare over smb */
-	ESharesmbfailed                    /* failed to share over smb */
-	EBadcache                          /* bad cache file */
-	EIsl2CACHE                         /* device is for the level 2 ARC */
-	EVdevnotsup                        /* unsupported vdev type */
-	ENotsup                            /* ops not supported on this dataset */
-	EActiveSpare                       /* pool has active shared spare devices */
-	EUnplayedLogs                      /* log device has unplayed logs */
-	EReftagRele                        /* snapshot release: tag not found */
-	EReftagHold                        /* snapshot hold: tag already exists */
-	ETagtoolong                        /* snapshot hold/rele: tag too long */
-	EPipefailed                        /* pipe create failed */
-	EThreadcreatefailed                /* thread create failed */
-	EPostsplitOnline                   /* onlining a disk after splitting it */
-	EScrubbing                         /* currently scrubbing */
-	ENoScrub                           /* no active scrub */
-	EDiff                              /* general failure of zfs diff */
-	EDiffdata                          /* bad zfs diff data */
-	EPoolreadonly                      /* pool is in read-only mode */
-	EScrubpaused                       /* scrub currently paused */
-	EActivepool                        /* pool is imported on a different system */
-	ECryptofailed                      /* failed to setup encryption */
-	ENopending                         /* cannot cancel, no operation is pending */
-	ECheckpointExists                  /* checkpoint exists */
-	EDiscardingCheckpoint              /* currently discarding a checkpoint */
-	ENoCheckpoint                      /* pool has no checkpoint */
-	EDevrmInProgress                   /* a device is currently being removed */
-	EVdevTooBig                        /* a device is too big to be used */
-	EIocNotsupported                   /* operation not supported by zfs module */
-	EToomany	                   /* argument list too long */
-	EInitializing                      /* currently initializing */
-	ENoInitialize                      /* no active initialize */
-	EWrongParent                       /* invalid parent dataset (e.g ZVOL) */
-	ETrimming                          /* currently trimming */
-	ENoTrim                            /* no active trim */
-	ETrimNotsup                        /* device does not support trim */
-	ENoResilverDefer                   /* pool doesn't support resilver_defer */
-	EExportInProgress                  /* currently exporting the pool */
+	ESuccess              = 0               /* no error -- success */
+	ENomem                = 2000 + iota - 1 /* out of memory */
+	EBadprop                                /* invalid property value */
+	EPropreadonly                           /* cannot set readonly property */
+	EProptype                               /* property does not apply to dataset type */
+	EPropnoninherit                         /* property is not inheritable */
+	EPropspace                              /* bad quota or reservation */
+	EBadtype                                /* dataset is not of appropriate type */
+	EBusy                                   /* pool or dataset is busy */
+	EExists                                 /* pool or dataset already exists */
+	ENoent                                  /* no such pool or dataset */
+	EBadstream                              /* bad backup stream */
+	EDsreadonly                             /* dataset is readonly */
+	EVoltoobig                              /* volume is too large for 32-bit system */
+	EInvalidname                            /* invalid dataset name */
+	EBadrestore                             /* unable to restore to destination */
+	EBadbackup                              /* backup failed */
+	EBadtarget                              /* bad attach/detach/replace target */
+	ENodevice                               /* no such device in pool */
+	EBaddev                                 /* invalid device to add */
+	ENoreplicas                             /* no valid replicas */
+	EResilvering                            /* currently resilvering */
+	EBadversion                             /* unsupported version */
+	EPoolunavail                            /* pool is currently unavailable */
+	EDevoverflow                            /* too many devices in one vdev */
+	EBadpath                                /* must be an absolute path */
+	ECrosstarget                            /* rename or clone across pool or dataset */
+	EZoned                                  /* used improperly in local zone */
+	EMountfailed                            /* failed to mount dataset */
+	EUmountfailed                           /* failed to unmount dataset */
+	EUnsharenfsfailed                       /* unshare(1M) failed */
+	ESharenfsfailed                         /* share(1M) failed */
+	EPerm                                   /* permission denied */
+	ENospc                                  /* out of space */
+	EFault                                  /* bad address */
+	EIo                                     /* I/O error */
+	EIntr                                   /* signal received */
+	EIsspare                                /* device is a hot spare */
+	EInvalconfig                            /* invalid vdev configuration */
+	ERecursive                              /* recursive dependency */
+	ENohistory                              /* no history object */
+	EPoolprops                              /* couldn't retrieve pool props */
+	EPoolNotsup                             /* ops not supported for this type of pool */
+	EPoolInvalarg                           /* invalid argument for this pool operation */
+	ENametoolong                            /* dataset name is too long */
+	EOpenfailed                             /* open of device failed */
+	ENocap                                  /* couldn't get capacity */
+	ELabelfailed                            /* write of label failed */
+	EBadwho                                 /* invalid permission who */
+	EBadperm                                /* invalid permission */
+	EBadpermset                             /* invalid permission set name */
+	ENodelegation                           /* delegated administration is disabled */
+	EUnsharesmbfailed                       /* failed to unshare over smb */
+	ESharesmbfailed                         /* failed to share over smb */
+	EBadcache                               /* bad cache file */
+	EIsl2CACHE                              /* device is for the level 2 ARC */
+	EVdevnotsup                             /* unsupported vdev type */
+	ENotsup                                 /* ops not supported on this dataset */
+	EActiveSpare                            /* pool has active shared spare devices */
+	EUnplayedLogs                           /* log device has unplayed logs */
+	EReftagRele                             /* snapshot release: tag not found */
+	EReftagHold                             /* snapshot hold: tag already exists */
+	ETagtoolong                             /* snapshot hold/rele: tag too long */
+	EPipefailed                             /* pipe create failed */
+	EThreadcreatefailed                     /* thread create failed */
+	EPostsplitOnline                        /* onlining a disk after splitting it */
+	EScrubbing                              /* currently scrubbing */
+	ENoScrub                                /* no active scrub */
+	EDiff                                   /* general failure of zfs diff */
+	EDiffdata                               /* bad zfs diff data */
+	EPoolreadonly                           /* pool is in read-only mode */
+	EScrubpaused                            /* scrub currently paused */
+	EActivepool                             /* pool is imported on a different system */
+	ECryptofailed                           /* failed to setup encryption */
+	ENopending                              /* cannot cancel, no operation is pending */
+	ECheckpointExists                       /* checkpoint exists */
+	EDiscardingCheckpoint                   /* currently discarding a checkpoint */
+	ENoCheckpoint                           /* pool has no checkpoint */
+	EDevrmInProgress                        /* a device is currently being removed */
+	EVdevTooBig                             /* a device is too big to be used */
+	EIocNotsupported                        /* operation not supported by zfs module */
+	EToomany                                /* argument list too long */
+	EInitializing                           /* currently initializing */
+	ENoInitialize                           /* no active initialize */
+	EWrongParent                            /* invalid parent dataset (e.g ZVOL) */
+	ETrimming                               /* currently trimming */
+	ENoTrim                                 /* no active trim */
+	ETrimNotsup                             /* device does not support trim */
+	ENoResilverDefer                        /* pool doesn't support resilver_defer */
+	EExportInProgress                       /* currently exporting the pool */
 	EUnknown
 )
 
@@ -434,3 +438,60 @@ const (
 	VDevAuxExternal                    // external diagnosis
 	VDevAuxSplitPool                   // vdev was split off into another pool
 )
+
+var PoolStatusStrings = map[PoolStatus]string{
+	PoolStatusCorruptCache:      "CORRUPT_CACHE",
+	PoolStatusMissingDevR:       "MISSING_DEV_R", /* missing device with replicas */
+	PoolStatusMissingDevNr:      "MISSING_DEV_NR",
+	PoolStatusCorruptLabelR:     "CORRUPT_LABEL_R",
+	PoolStatusCorruptLabelNr:    "CORRUPT_LABEL_NR",
+	PoolStatusBadGUIDSum:        "BAD_GUID_SUM",
+	PoolStatusCorruptPool:       "CORRUPT_POOL",
+	PoolStatusCorruptData:       "CORRUPT_DATA",
+	PoolStatusFailingDev:        "FAILLING_DEV",
+	PoolStatusVersionNewer:      "VERSION_NEWER",
+	PoolStatusHostidMismatch:    "HOSTID_MISMATCH",
+	PoolStatusHosidActive:       "HOSTID_ACTIVE",
+	PoolStatusHostidRequired:    "HOSTID_REQUIRED",
+	PoolStatusIoFailureWait:     "FAILURE_WAIT",
+	PoolStatusIoFailureContinue: "FAILURE_CONTINUE",
+	PoolStatusIOFailureMMP:      "HOSTID_FAILURE_MMP",
+	PoolStatusBadLog:            "BAD_LOG",
+	PoolStatusErrata:            "ERRATA",
+
+	/*
+	 * If the pool has unsupported features but can still be opened in
+	 * read-only mode, its status is ZPOOL_STATUS_UNSUP_FEAT_WRITE. If the
+	 * pool has unsupported features but cannot be opened at all, its
+	 * status is ZPOOL_STATUS_UNSUP_FEAT_READ.
+	 */
+	PoolStatusUnsupFeatRead:  "UNSUP_FEAT_READ",
+	PoolStatusUnsupFeatWrite: "UNSUP_FEAT_WRITE",
+
+	/*
+	* These faults have no corresponding message ID.  At the time we are
+	* checking the status, the original reason for the FMA fault (I/O or
+	* checksum errors) has been lost.
+	 */
+	PoolStatusFaultedDevR:  "FAULTED_DEV_R",
+	PoolStatusFaultedDevNr: "FAULTED_DEV_NR",
+
+	/*
+	* The following are not faults per se, but still an error possibly
+	* requiring administrative attention.  There is no corresponding
+	* message ID.
+	 */
+	PoolStatusVersionOlder:    "VERSION_OLDER",
+	PoolStatusFeatDisabled:    "FEAT_DISABLED",
+	PoolStatusResilvering:     "RESILVERIN",
+	PoolStatusOfflineDev:      "OFFLINE_DEV",
+	PoolStatusRemovedDev:      "REMOVED_DEV",
+	PoolStatusRebuilding:      "REBUILDING",
+	PoolStatusRebuildScrub:    "REBUILD_SCRUB",
+	PoolStatusNonNativeAshift: "NON_NATIVE_ASHIFT",
+
+	/*
+	 * Finally, the following indicates a healthy pool.
+	 */
+	PoolStatusOk: "OK",
+}
