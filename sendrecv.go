@@ -59,7 +59,6 @@ func to_sendflags_t(flags *SendFlags) (cflags *C.sendflags_t) {
 	cflags.replicate = to_boolean_t(flags.Replicate)
 	cflags.doall = to_boolean_t(flags.DoAll)
 	cflags.fromorigin = to_boolean_t(flags.FromOrigin)
-	cflags.dedup = to_boolean_t(flags.Dedup)
 	cflags.props = to_boolean_t(flags.Props)
 	cflags.dryrun = to_boolean_t(flags.DryRun)
 	cflags.parsable = to_boolean_t(flags.Parsable)

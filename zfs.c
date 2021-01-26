@@ -3,6 +3,7 @@
  */
 
 #include <libzfs.h>
+#include <libzutil.h>
 #include <memory.h>
 #include <string.h>
 #include <stdio.h>
@@ -10,7 +11,6 @@
 #include "common.h"
 #include "zpool.h"
 #include "zfs.h"
-
 
 dataset_list_t *create_dataset_list_item() {
 	dataset_list_t *zlist = malloc(sizeof(dataset_list_t));
@@ -133,7 +133,14 @@ int dataset_promote(dataset_list_ptr dataset) {
 }
 
 int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t recur, boolean_t force_unm) {
-	return zfs_rename(dataset->zh, new_name, recur, force_unm);
+	renameflags_t flags = { 0 };
+	if (recur) {
+		flags.recursive = B_TRUE;
+	}
+	if (force_unm) {
+		flags.forceunmount = B_TRUE;
+	}
+	return zfs_rename(dataset->zh, new_name, flags);
 }
 
 const char *dataset_is_mounted(dataset_list_ptr dataset){
