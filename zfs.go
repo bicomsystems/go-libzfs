@@ -827,7 +827,7 @@ func (d *Dataset) Clones() (clones []string, err error) {
 	defer root.Close()
 	dIsSnapshot := d.IsSnapshot()
 	// USe breadth first search to find all clones
-	queue := make(chan Dataset, 1024)
+	queue := make(chan Dataset, 2048)
 	defer close(queue) // This will close and cleanup all
 	queue <- root      // start from the root element
 	for {
