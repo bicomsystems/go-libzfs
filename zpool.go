@@ -527,7 +527,7 @@ func (pool *Pool) ReloadProperties() (err error) {
 
 	pool.Properties = make([]Property, PoolNumProps+1)
 	next := propList
-	for next != nil {
+	for i := 0; next != nil && i < int(PoolNumProps); i++ {
 		pool.Properties[next.property] = Property{Value: C.GoString(&(next.value[0])), Source: C.GoString(&(next.source[0]))}
 		next = C.next_property(next)
 	}
