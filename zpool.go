@@ -937,6 +937,25 @@ func PoolCreate(name string, vdev VDevTree, features map[string]string,
 	features["edonr"] = FENABLED
 	features["userobj_accounting"] = FENABLED
 
+	// Enable 2.1.x features per default
+	features["encryption"] = FENABLED
+	features["project_quota"] = FENABLED
+	features["device_removal"] = FENABLED
+	features["obsolete_counts"] = FENABLED
+	features["zpool_checkpoint"] = FENABLED
+	features["spacemap_v2"] = FENABLED
+	features["allocation_classes"] = FENABLED
+	features["resilver_defer"] = FENABLED
+	features["bookmark_v2"] = FENABLED
+	features["redaction_bookmarks"] = FENABLED
+	features["redacted_datasets"] = FENABLED
+	features["bookmark_written"] = FENABLED
+	features["log_spacemap"] = FENABLED
+	features["livelist"] = FENABLED
+	features["device_rebuild"] = FENABLED
+	features["zstd_compress"] = FENABLED
+	features["draid"] = FENABLED
+
 	// convert properties
 	cprops := toCPoolProperties(props)
 	if cprops != nil {
@@ -1106,7 +1125,7 @@ func (pool *Pool) initialize(action PoolInitializeAction) (err error) {
 	C.collect_zpool_leaves(pool.list.zph, nvroot, vds)
 
 	if C.zpool_initialize(pool.list.zph, C.pool_initialize_func_t(action), vds) != 0 {
-		err = fmt.Errorf("Initialization action %s failed", action.String())
+		err = fmt.Errorf("Initialization action %s failed. (%s)", action.String(), LastError())
 		return
 	}
 	return

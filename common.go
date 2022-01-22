@@ -121,14 +121,16 @@ const (
 	 * requiring administrative attention.  There is no corresponding
 	 * message ID.
 	 */
-	PoolStatusVersionOlder    /* older legacy on-disk version */
-	PoolStatusFeatDisabled    /* supported features are disabled */
-	PoolStatusResilvering     /* device being resilvered */
-	PoolStatusOfflineDev      /* device offline */
-	PoolStatusRemovedDev      /* removed device */
-	PoolStatusRebuilding      /* device being rebuilt */
-	PoolStatusRebuildScrub    /* recommend scrubbing the pool */
-	PoolStatusNonNativeAshift /* (e.g. 512e dev with ashift of 9) */
+	PoolStatusVersionOlder     /* older legacy on-disk version */
+	PoolStatusFeatDisabled     /* supported features are disabled */
+	PoolStatusResilvering      /* device being resilvered */
+	PoolStatusOfflineDev       /* device offline */
+	PoolStatusRemovedDev       /* removed device */
+	PoolStatusRebuilding       /* device being rebuilt */
+	PoolStatusRebuildScrub     /* recommend scrubbing the pool */
+	PoolStatusNonNativeAshift  /* (e.g. 512e dev with ashift of 9) */
+	PoolStatusCompatibilityErr /* bad 'compatibility' property */
+	PoolStatusIncompatibleFeat /* feature set outside compatibility */
 
 	/*
 	 * Finally, the following indicates a healthy pool.
@@ -185,6 +187,7 @@ const (
 	PoolPropCheckpoint
 	PoolPropLoadGUID
 	PoolPropAutotrim
+	PoolPropCompatibility
 	PoolNumProps
 )
 
@@ -288,6 +291,10 @@ const (
 	DatasetPropKeyGUID
 	DatasetPropKeyStatus
 	DatasetPropRemapTXG /* not exposed to the user */
+	DatasetPropSpecialSmallBlocks
+	DatasetPropIVSetGuid /* not exposed to the user */
+	DatasetPropRedacted
+	DatasetPropRedactSnaps
 	DatasetNumProps
 )
 
@@ -402,6 +409,7 @@ const (
 	ETrimNotsup                             /* device does not support trim */
 	ENoResilverDefer                        /* pool doesn't support resilver_defer */
 	EExportInProgress                       /* currently exporting the pool */
+	ERebuilding                             /* resilvering (sequential reconstrution) */
 	EUnknown
 )
 
@@ -421,22 +429,27 @@ const (
 // vdev aux states.  When a vdev is in the VDevStateCantOpen state, the aux field
 // of the vdev stats structure uses these constants to distinguish why.
 const (
-	VDevAuxNone         VDevAux = iota // no error
-	VDevAuxOpenFailed                  // ldi_open_*() or vn_open() failed
-	VDevAuxCorruptData                 // bad label or disk contents
-	VDevAuxNoReplicas                  // insufficient number of replicas
-	VDevAuxBadGUIDSum                  // vdev guid sum doesn't match
-	VDevAuxTooSmall                    // vdev size is too small
-	VDevAuxBadLabel                    // the label is OK but invalid
-	VDevAuxVersionNewer                // on-disk version is too new
-	VDevAuxVersionOlder                // on-disk version is too old
-	VDevAuxUnsupFeat                   // unsupported features
-	VDevAuxSpared                      // hot spare used in another pool
-	VDevAuxErrExceeded                 // too many errors
-	VDevAuxIOFailure                   // experienced I/O failure
-	VDevAuxBadLog                      // cannot read log chain(s)
-	VDevAuxExternal                    // external diagnosis
-	VDevAuxSplitPool                   // vdev was split off into another pool
+	VDevAuxNone            VDevAux = iota // no error
+	VDevAuxOpenFailed                     // ldi_open_*() or vn_open() failed
+	VDevAuxCorruptData                    // bad label or disk contents
+	VDevAuxNoReplicas                     // insufficient number of replicas
+	VDevAuxBadGUIDSum                     // vdev guid sum doesn't match
+	VDevAuxTooSmall                       // vdev size is too small
+	VDevAuxBadLabel                       // the label is OK but invalid
+	VDevAuxVersionNewer                   // on-disk version is too new
+	VDevAuxVersionOlder                   // on-disk version is too old
+	VDevAuxUnsupFeat                      // unsupported features
+	VDevAuxSpared                         // hot spare used in another pool
+	VDevAuxErrExceeded                    // too many errors
+	VDevAuxIOFailure                      // experienced I/O failure
+	VDevAuxBadLog                         // cannot read log chain(s)
+	VDevAuxExternal                       // external diagnosis
+	VDevAuxSplitPool                      // vdev was split off into another pool
+	VdevAuxBadAshift                      // vdev ashift is invalid
+	VdevAuxExternalPersist                // persistent forced fault
+	VdevAuxActive                         // vdev active on a different host
+	VdevAuxChildrenOffline                // all children are offline
+	VdevAuxAshiftTooBig                   // vdev's min block size is too large
 )
 
 var PoolStatusStrings = map[PoolStatus]string{
@@ -481,14 +494,16 @@ var PoolStatusStrings = map[PoolStatus]string{
 	* requiring administrative attention.  There is no corresponding
 	* message ID.
 	 */
-	PoolStatusVersionOlder:    "VERSION_OLDER",
-	PoolStatusFeatDisabled:    "FEAT_DISABLED",
-	PoolStatusResilvering:     "RESILVERIN",
-	PoolStatusOfflineDev:      "OFFLINE_DEV",
-	PoolStatusRemovedDev:      "REMOVED_DEV",
-	PoolStatusRebuilding:      "REBUILDING",
-	PoolStatusRebuildScrub:    "REBUILD_SCRUB",
-	PoolStatusNonNativeAshift: "NON_NATIVE_ASHIFT",
+	PoolStatusVersionOlder:     "VERSION_OLDER",
+	PoolStatusFeatDisabled:     "FEAT_DISABLED",
+	PoolStatusResilvering:      "RESILVERIN",
+	PoolStatusOfflineDev:       "OFFLINE_DEV",
+	PoolStatusRemovedDev:       "REMOVED_DEV",
+	PoolStatusRebuilding:       "REBUILDING",
+	PoolStatusRebuildScrub:     "REBUILD_SCRUB",
+	PoolStatusNonNativeAshift:  "NON_NATIVE_ASHIFT",
+	PoolStatusCompatibilityErr: "COMPATIBILITY_ERR",
+	PoolStatusIncompatibleFeat: "INCOMPATIBLE_FEAT",
 
 	/*
 	 * Finally, the following indicates a healthy pool.

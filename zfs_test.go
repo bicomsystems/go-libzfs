@@ -51,7 +51,7 @@ func zfsTestDatasetCreate(t *testing.T) {
 	d.Close()
 	print("PASS\n\n")
 
-	strSize := "536870912" // 512M
+	strSize := "134217728" // 128M
 
 	println("TEST DatasetCreate(", TSTVolumePath, ") (volume) ... ")
 	props[zfs.DatasetPropVolsize] = zfs.Property{Value: strSize}

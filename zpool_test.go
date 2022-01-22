@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	zfs "github.com/bicomsystems/go-libzfs"
 )
@@ -34,15 +33,15 @@ var s1path, s2path, s3path string
 // This will create sparse files in tmp directory,
 // for purpose of creating test pool.
 func createTestpoolVdisks() (err error) {
-	if s1path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+	if s1path, err = CreateTmpSparse("zfs_test_", 0x20000000); err != nil {
 		return
 	}
-	if s2path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+	if s2path, err = CreateTmpSparse("zfs_test_", 0x20000000); err != nil {
 		// try cleanup
 		os.Remove(s1path)
 		return
 	}
-	if s3path, err = CreateTmpSparse("zfs_test_", 0x140000000); err != nil {
+	if s3path, err = CreateTmpSparse("zfs_test_", 0x20000000); err != nil {
 		// try cleanup
 		os.Remove(s1path)
 		os.Remove(s2path)
@@ -106,6 +105,7 @@ func zpoolTestPoolCreate(t *testing.T) {
 	vdev.Spares = sdevs
 
 	props := make(map[zfs.Prop]string)
+	props[zfs.PoolPropFailuremode] = "continue"
 	fsprops := make(map[zfs.Prop]string)
 	features := make(map[string]string)
 	fsprops[zfs.DatasetPropMountpoint] = "none"
@@ -383,7 +383,7 @@ func zpoolTestInitialization(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	time.Sleep(1 * time.Second)
+	// time.Sleep(1 * time.Second)
 	err = pool.SuspendInitialization()
 	if err != nil {
 		t.Error(err.Error())
@@ -394,7 +394,7 @@ func zpoolTestInitialization(t *testing.T) {
 		t.Error(err.Error())
 		return
 	}
-	time.Sleep(1 * time.Second)
+	// time.Sleep(1 * time.Second)
 	err = pool.CancelInitialization()
 	if err != nil {
 		t.Error(err.Error())
@@ -486,6 +486,7 @@ func ExamplePoolCreate() {
 
 	// pool properties
 	props := make(map[zfs.Prop]string)
+	props[zfs.PoolPropFailuremode] = "continue"
 	// root dataset filesystem properties
 	fsprops := make(map[zfs.Prop]string)
 	// pool features

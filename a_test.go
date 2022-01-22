@@ -36,6 +36,7 @@ func Test(t *testing.T) {
 
 	zfsTestDoubleFreeOnDestroy(t)
 	zfsTestDatasetDestroy(t)
+	zfsTestDataset_DestroyPromote(t)
 
 	zpoolTestPoolDestroy(t)
 

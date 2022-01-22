@@ -6,8 +6,7 @@ import (
 	zfs "github.com/bicomsystems/go-libzfs"
 )
 
-func TestDataset_DestroyPromote(t *testing.T) {
-	zpoolTestPoolCreate(t)
+func zfsTestDataset_DestroyPromote(t *testing.T) {
 	// defer zpoolTestPoolDestroy(t)
 	var c1, c2 zfs.Dataset
 
@@ -59,6 +58,4 @@ func TestDataset_DestroyPromote(t *testing.T) {
 	}
 	t.Log("Destroy promote completed with success")
 	d.Close()
-	zpoolTestPoolDestroy(t)
-	cleanupVDisks()
 }
