@@ -181,6 +181,7 @@ const (
 	PoolPropCheckpoint
 	PoolPropLoadGuid
 	PoolPropAutotrim
+	PoolPropCompatibility
 	PoolNumProps
 )
 
