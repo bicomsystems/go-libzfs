@@ -308,96 +308,96 @@ func booleanT(b bool) (r C.boolean_t) {
 
 // ZFS errors
 const (
-	ESuccess         = 0               /* no error -- success */
-	ENomem           = 2000 + iota - 1 /* out of memory */
-	EBadprop                           /* invalid property value */
-	EPropreadonly                      /* cannot set readonly property */
-	EProptype                          /* property does not apply to dataset type */
-	EPropnoninherit                    /* property is not inheritable */
-	EPropspace                         /* bad quota or reservation */
-	EBadtype                           /* dataset is not of appropriate type */
-	EBusy                              /* pool or dataset is busy */
-	EExists                            /* pool or dataset already exists */
-	ENoent                             /* no such pool or dataset */
-	EBadstream                         /* bad backup stream */
-	EDsreadonly                        /* dataset is readonly */
-	EVoltoobig                         /* volume is too large for 32-bit system */
-	EInvalidname                       /* invalid dataset name */
-	EBadrestore                        /* unable to restore to destination */
-	EBadbackup                         /* backup failed */
-	EBadtarget                         /* bad attach/detach/replace target */
-	ENodevice                          /* no such device in pool */
-	EBaddev                            /* invalid device to add */
-	ENoreplicas                        /* no valid replicas */
-	EResilvering                       /* currently resilvering */
-	EBadversion                        /* unsupported version */
-	EPoolunavail                       /* pool is currently unavailable */
-	EDevoverflow                       /* too many devices in one vdev */
-	EBadpath                           /* must be an absolute path */
-	ECrosstarget                       /* rename or clone across pool or dataset */
-	EZoned                             /* used improperly in local zone */
-	EMountfailed                       /* failed to mount dataset */
-	EUmountfailed                      /* failed to unmount dataset */
-	EUnsharenfsfailed                  /* unshare(1M) failed */
-	ESharenfsfailed                    /* share(1M) failed */
-	EPerm                              /* permission denied */
-	ENospc                             /* out of space */
-	EFault                             /* bad address */
-	EIo                                /* I/O error */
-	EIntr                              /* signal received */
-	EIsspare                           /* device is a hot spare */
-	EInvalconfig                       /* invalid vdev configuration */
-	ERecursive                         /* recursive dependency */
-	ENohistory                         /* no history object */
-	EPoolprops                         /* couldn't retrieve pool props */
-	EPoolNotsup                        /* ops not supported for this type of pool */
-	EPoolInvalarg                      /* invalid argument for this pool operation */
-	ENametoolong                       /* dataset name is too long */
-	EOpenfailed                        /* open of device failed */
-	ENocap                             /* couldn't get capacity */
-	ELabelfailed                       /* write of label failed */
-	EBadwho                            /* invalid permission who */
-	EBadperm                           /* invalid permission */
-	EBadpermset                        /* invalid permission set name */
-	ENodelegation                      /* delegated administration is disabled */
-	EUnsharesmbfailed                  /* failed to unshare over smb */
-	ESharesmbfailed                    /* failed to share over smb */
-	EBadcache                          /* bad cache file */
-	EIsl2CACHE                         /* device is for the level 2 ARC */
-	EVdevnotsup                        /* unsupported vdev type */
-	ENotsup                            /* ops not supported on this dataset */
-	EActiveSpare                       /* pool has active shared spare devices */
-	EUnplayedLogs                      /* log device has unplayed logs */
-	EReftagRele                        /* snapshot release: tag not found */
-	EReftagHold                        /* snapshot hold: tag already exists */
-	ETagtoolong                        /* snapshot hold/rele: tag too long */
-	EPipefailed                        /* pipe create failed */
-	EThreadcreatefailed                /* thread create failed */
-	EPostsplitOnline                   /* onlining a disk after splitting it */
-	EScrubbing                         /* currently scrubbing */
-	ENoScrub                           /* no active scrub */
-	EDiff                              /* general failure of zfs diff */
-	EDiffdata                          /* bad zfs diff data */
-	EPoolreadonly                      /* pool is in read-only mode */
-	EScrubpaused                       /* scrub currently paused */
-	EActivepool                        /* pool is imported on a different system */
-	ECryptofailed                      /* failed to setup encryption */
-	ENopending                         /* cannot cancel, no operation is pending */
-	ECheckpointExists                  /* checkpoint exists */
-	EDiscardingCheckpoint              /* currently discarding a checkpoint */
-	ENoCheckpoint                      /* pool has no checkpoint */
-	EDevrmInProgress                   /* a device is currently being removed */
-	EVdevTooBig                        /* a device is too big to be used */
-	EIocNotsupported                   /* operation not supported by zfs module */
-	EToomany	                   /* argument list too long */
-	EInitializing                      /* currently initializing */
-	ENoInitialize                      /* no active initialize */
-	EWrongParent                       /* invalid parent dataset (e.g ZVOL) */
-	ETrimming                          /* currently trimming */
-	ENoTrim                            /* no active trim */
-	ETrimNotsup                        /* device does not support trim */
-	ENoResilverDefer                   /* pool doesn't support resilver_defer */
-	EExportInProgress                  /* currently exporting the pool */
+	ESuccess              = 0               /* no error -- success */
+	ENomem                = 2000 + iota - 1 /* out of memory */
+	EBadprop                                /* invalid property value */
+	EPropreadonly                           /* cannot set readonly property */
+	EProptype                               /* property does not apply to dataset type */
+	EPropnoninherit                         /* property is not inheritable */
+	EPropspace                              /* bad quota or reservation */
+	EBadtype                                /* dataset is not of appropriate type */
+	EBusy                                   /* pool or dataset is busy */
+	EExists                                 /* pool or dataset already exists */
+	ENoent                                  /* no such pool or dataset */
+	EBadstream                              /* bad backup stream */
+	EDsreadonly                             /* dataset is readonly */
+	EVoltoobig                              /* volume is too large for 32-bit system */
+	EInvalidname                            /* invalid dataset name */
+	EBadrestore                             /* unable to restore to destination */
+	EBadbackup                              /* backup failed */
+	EBadtarget                              /* bad attach/detach/replace target */
+	ENodevice                               /* no such device in pool */
+	EBaddev                                 /* invalid device to add */
+	ENoreplicas                             /* no valid replicas */
+	EResilvering                            /* currently resilvering */
+	EBadversion                             /* unsupported version */
+	EPoolunavail                            /* pool is currently unavailable */
+	EDevoverflow                            /* too many devices in one vdev */
+	EBadpath                                /* must be an absolute path */
+	ECrosstarget                            /* rename or clone across pool or dataset */
+	EZoned                                  /* used improperly in local zone */
+	EMountfailed                            /* failed to mount dataset */
+	EUmountfailed                           /* failed to unmount dataset */
+	EUnsharenfsfailed                       /* unshare(1M) failed */
+	ESharenfsfailed                         /* share(1M) failed */
+	EPerm                                   /* permission denied */
+	ENospc                                  /* out of space */
+	EFault                                  /* bad address */
+	EIo                                     /* I/O error */
+	EIntr                                   /* signal received */
+	EIsspare                                /* device is a hot spare */
+	EInvalconfig                            /* invalid vdev configuration */
+	ERecursive                              /* recursive dependency */
+	ENohistory                              /* no history object */
+	EPoolprops                              /* couldn't retrieve pool props */
+	EPoolNotsup                             /* ops not supported for this type of pool */
+	EPoolInvalarg                           /* invalid argument for this pool operation */
+	ENametoolong                            /* dataset name is too long */
+	EOpenfailed                             /* open of device failed */
+	ENocap                                  /* couldn't get capacity */
+	ELabelfailed                            /* write of label failed */
+	EBadwho                                 /* invalid permission who */
+	EBadperm                                /* invalid permission */
+	EBadpermset                             /* invalid permission set name */
+	ENodelegation                           /* delegated administration is disabled */
+	EUnsharesmbfailed                       /* failed to unshare over smb */
+	ESharesmbfailed                         /* failed to share over smb */
+	EBadcache                               /* bad cache file */
+	EIsl2CACHE                              /* device is for the level 2 ARC */
+	EVdevnotsup                             /* unsupported vdev type */
+	ENotsup                                 /* ops not supported on this dataset */
+	EActiveSpare                            /* pool has active shared spare devices */
+	EUnplayedLogs                           /* log device has unplayed logs */
+	EReftagRele                             /* snapshot release: tag not found */
+	EReftagHold                             /* snapshot hold: tag already exists */
+	ETagtoolong                             /* snapshot hold/rele: tag too long */
+	EPipefailed                             /* pipe create failed */
+	EThreadcreatefailed                     /* thread create failed */
+	EPostsplitOnline                        /* onlining a disk after splitting it */
+	EScrubbing                              /* currently scrubbing */
+	ENoScrub                                /* no active scrub */
+	EDiff                                   /* general failure of zfs diff */
+	EDiffdata                               /* bad zfs diff data */
+	EPoolreadonly                           /* pool is in read-only mode */
+	EScrubpaused                            /* scrub currently paused */
+	EActivepool                             /* pool is imported on a different system */
+	ECryptofailed                           /* failed to setup encryption */
+	ENopending                              /* cannot cancel, no operation is pending */
+	ECheckpointExists                       /* checkpoint exists */
+	EDiscardingCheckpoint                   /* currently discarding a checkpoint */
+	ENoCheckpoint                           /* pool has no checkpoint */
+	EDevrmInProgress                        /* a device is currently being removed */
+	EVdevTooBig                             /* a device is too big to be used */
+	EIocNotsupported                        /* operation not supported by zfs module */
+	EToomany                                /* argument list too long */
+	EInitializing                           /* currently initializing */
+	ENoInitialize                           /* no active initialize */
+	EWrongParent                            /* invalid parent dataset (e.g ZVOL) */
+	ETrimming                               /* currently trimming */
+	ENoTrim                                 /* no active trim */
+	ETrimNotsup                             /* device does not support trim */
+	ENoResilverDefer                        /* pool doesn't support resilver_defer */
+	EExportInProgress                       /* currently exporting the pool */
 	EUnknown
 )
 
@@ -434,3 +434,151 @@ const (
 	VDevAuxExternal                    // external diagnosis
 	VDevAuxSplitPool                   // vdev was split off into another pool
 )
+
+// status strings used by the zfs CLI when reporting zpool status.
+// These make it easier for users of this library to report status.
+const (
+	MsgPoolStatusMissingDevR       = `One or more devices could not be opened.  Sufficient replicas exist for the pool to continue functioning in a degraded state.`
+	MsgPoolStatusMissingDevNr      = `One or more devices could not be opened.  There are insufficient replicas for the pool to continue functioning.`
+	MsgPoolStatusCorruptLabelR     = `One or more devices could not be used because the label is missing or invalid. Sufficient replicas exist for the pool to continue functioning in a degraded state.`
+	MsgPoolStatusCorruptLabelNr    = `One or more devices could not be used because the label is missing or invalid. There are insufficient replicas for the pool to continue functioning.`
+	MsgPoolStatusCorruptPool       = `The pool metadata is corrupted and the pool cannot be opened.`
+	MsgPoolStatusCorruptData       = `One or more devices has experienced an error resulting in data corruption. Applications may be affected.`
+	MsgPoolStatusFailingDev        = `One or more devices has experienced an unrecoverable error. An attempt was made to correct the error.  Applications are unaffected.`
+	MsgPoolStatusOfflineDev        = `One or more devices has been taken offline by the administrator. Sufficient replicas exist for the pool to continue functioning in a degraded state.`
+	MsgPoolStatusRemovedDev        = `One or more devices has been removed by the administrator. Sufficient replicas exist for the pool to continue functioning in a degraded state.`
+	MsgPoolStatusResilvering       = `One or more devices is currently being resilvered. The pool will continue to function, possibly in a degraded state.`
+	MsgPoolStatusRebuilding        = MsgPoolStatusResilvering
+	MsgPoolStatusVersionNewer      = `The pool has been upgraded to a newer, incompatible on-disk version. The pool cannot be accessed on this system.`
+	MsgPoolStatusVersionOlder      = `The pool is formatted using a legacy on-disk format.  The pool can still be used, but some features are unavailable.`
+	MsgPoolStatusFeatDisabled      = `Some supported and requested features are not enabled on the pool. The pool can still be used, but some features are unavailable.`
+	MsgPoolStatusUnsupFeatRead     = `The pool cannot be accessed on this system because it uses feature(s) not supported on this system.`
+	MsgPoolStatusUnsupFeatWrite    = `The pool can only be accessed in read-only mode on this system. It cannot be accessed in read-write mode because it uses feature(s) not supported on this system.`
+	MsgPoolStatusFaultedDevR       = `One or more devices are faulted in response to persistent errors. Sufficient replicas exist for the pool to continue functioning in a degraded state.`
+	MsgPoolStatusFaultedDevNr      = `One or more devices are faulted in response to persistent errors. There are insufficient replicas for the pool to continue functioning.`
+	MsgPoolStatusHostidMismatch    = `Mismatch between pool hostid and system hostid on imported pool. This pool was previously imported into a system with a different hostid, and then was verbatim imported into this system.`
+	MsgPoolStatusHosidActive       = `The pool is currently imported by another system.`
+	MsgPoolStatusHostidRequired    = `The pool has the multihost property on.  It cannot be safely imported when the system hostid is not set.`
+	MsgPoolStatusIoFailureWait     = `One or more devices are faulted in response to IO failures.`
+	MsgPoolStatusIoFailureContinue = MsgPoolStatusIoFailureWait
+	MsgPoolStatusIOFailureMap      = `The pool is suspended because multihost writes failed or were delayed; another system could import the pool undetected.`
+	MsgPoolStatusBadLog            = `An intent log record could not be read. Waiting for administrator intervention to fix the faulted pool.`
+	MsgPoolStatusErrata            = `Errate detected.`
+)
+
+// action strings
+const (
+	ActionPoolStatusMissingDevR       = `Attach the missing device and online it using 'zpool online'.`
+	ActionPoolStatusMissingDevNr      = `Attach the missing device and online it using 'zpool online'.`
+	ActionPoolStatusCorruptLabelR     = `Replace the device using 'zpool replace'.`
+	ActionPoolStatusCorruptLabelNr    = ``
+	ActionPoolStatusCorruptPool       = ``
+	ActionPoolStatusCorruptData       = `Restore the file in question if possible.  Otherwise restore the entire pool from backup.`
+	ActionPoolStatusFailingDev        = `Determine if the device needs to be replaced, and clear the errors using 'zpool clear' or replace the device with 'zpool replace'.`
+	ActionPoolStatusOfflineDev        = `Online the device using 'zpool online' or replace the device with 'zpool replace'.`
+	ActionPoolStatusRemovedDev        = `Online the device using zpool online' or replace the device with 'zpool replace'.`
+	ActionPoolStatusResilvering       = `Wait for the resilver to complete.`
+	ActionPoolStatusRebuilding        = ActionPoolStatusResilvering
+	ActionPoolStatusVersionNewer      = `Access the pool from a system running more recent software, or restore the pool from backup.`
+	ActionPoolStatusVersionOlder      = `Upgrade the pool using 'zpool upgrade'.  Once this is done, the pool will no longer be accessible on software that does not support feature flags.`
+	ActionPoolStatusFeatDisabled      = `Enable all features using 'zpool upgrade'. Once this is done, the pool may no longer be accessible by software that does not support the features. See zpool-features(7) for details.`
+	ActionPoolStatusUnsupFeatRead     = `Access the pool from a system that supports the required feature(s), or restore the pool from backup.`
+	ActionPoolStatusUnsupFeatWrite    = `The pool cannot be accessed in read-write mode. Import the pool with "-o readonly=on", access the pool from a system that supports the required feature(s), or restore the pool from backup.`
+	ActionPoolStatusFaultedDevR       = `Replace the faulted device, or use 'zpool clear' to mark the device repaired.`
+	ActionPoolStatusFaultedDevNr      = `Destroy and re-create the pool from a backup source.  Manually marking the device repaired using 'zpool clear' may allow some data to be recovered.`
+	ActionPoolStatusHostidMismatch    = `Export this pool on all systems on which it is imported. Then import it to correct the mismatch.`
+	ActionPoolStatusHosidActive       = ``
+	ActionPoolStatusHostidRequired    = ``
+	ActionPoolStatusIoFailureWait     = `Make sure the affected devices are connected, then run 'zpool clear'.`
+	ActionPoolStatusIoFailureContinue = ActionPoolStatusIoFailureWait
+	ActionPoolStatusIOFailureMap      = `Make sure the pool's devices are connected, then reboot your system and import the pool.`
+	ActionPoolStatusBadLog            = `Either restore the affected device(s) and run 'zpool online', or ignore the intent log records by running 'zpool clear'.`
+	ActionPoolStatusErrata            = ``
+)
+
+// GetStatusMessages get the status and action message for a given PoolStatus.
+// If none is available, return "" for each.
+func GetStatusMessages(status PoolStatus) (msg, action string) {
+	switch status {
+	case PoolStatusCorruptCache:
+		// no msg or status for this, but leaving blank as a sign for later
+	case PoolStatusMissingDevNr:
+		msg = MsgPoolStatusMissingDevNr
+		action = ActionPoolStatusMissingDevNr
+	case PoolStatusCorruptLabelR:
+		msg = MsgPoolStatusCorruptLabelR
+		action = ActionPoolStatusCorruptLabelR
+	case PoolStatusCorruptLabelNr:
+		msg = MsgPoolStatusCorruptLabelNr
+		action = ActionPoolStatusCorruptLabelNr
+	case PoolStatusBadGUIDSum:
+		// no msg or status for this, but leaving blank as a sign for later
+	case PoolStatusCorruptPool:
+		msg = MsgPoolStatusCorruptPool
+		action = ActionPoolStatusCorruptPool
+	case PoolStatusCorruptData:
+		msg = MsgPoolStatusCorruptData
+		action = ActionPoolStatusCorruptData
+	case PoolStatusFailingDev:
+		msg = MsgPoolStatusFailingDev
+		action = ActionPoolStatusFailingDev
+	case PoolStatusVersionNewer:
+		msg = MsgPoolStatusVersionNewer
+		action = ActionPoolStatusVersionNewer
+	case PoolStatusHostidMismatch:
+		msg = MsgPoolStatusHostidMismatch
+		action = ActionPoolStatusHostidMismatch
+	case PoolStatusHosidActive:
+		msg = MsgPoolStatusHosidActive
+		action = ActionPoolStatusHosidActive
+	case PoolStatusHostidRequired:
+		msg = MsgPoolStatusHostidRequired
+		action = ActionPoolStatusHostidRequired
+	case PoolStatusIoFailureWait:
+		msg = MsgPoolStatusIoFailureWait
+		action = ActionPoolStatusIoFailureWait
+	case PoolStatusIoFailureContinue:
+		msg = MsgPoolStatusIoFailureContinue
+		action = ActionPoolStatusIoFailureContinue
+	case PoolStatusIOFailureMap:
+		msg = MsgPoolStatusIOFailureMap
+		action = ActionPoolStatusIOFailureMap
+	case PoolStatusBadLog:
+		msg = MsgPoolStatusBadLog
+		action = ActionPoolStatusBadLog
+	case PoolStatusErrata:
+		msg = MsgPoolStatusErrata
+		action = ActionPoolStatusErrata
+	case PoolStatusUnsupFeatRead:
+		msg = MsgPoolStatusUnsupFeatRead
+		action = ActionPoolStatusUnsupFeatRead
+	case PoolStatusUnsupFeatWrite:
+		msg = MsgPoolStatusUnsupFeatWrite
+		action = ActionPoolStatusUnsupFeatWrite
+	case PoolStatusFaultedDevR:
+		msg = MsgPoolStatusFaultedDevR
+		action = ActionPoolStatusFaultedDevR
+	case PoolStatusFaultedDevNr:
+		msg = MsgPoolStatusFaultedDevNr
+		action = ActionPoolStatusFaultedDevNr
+	case PoolStatusVersionOlder:
+		msg = MsgPoolStatusVersionOlder
+		action = ActionPoolStatusVersionOlder
+	case PoolStatusFeatDisabled:
+		msg = MsgPoolStatusFeatDisabled
+		action = ActionPoolStatusFeatDisabled
+	case PoolStatusResilvering:
+		msg = MsgPoolStatusResilvering
+		action = ActionPoolStatusResilvering
+	case PoolStatusOfflineDev:
+		msg = MsgPoolStatusOfflineDev
+		action = ActionPoolStatusOfflineDev
+	case PoolStatusRemovedDev:
+		msg = MsgPoolStatusRemovedDev
+		action = ActionPoolStatusRemovedDev
+	case PoolStatusOk:
+		msg = ""
+		action = ""
+	}
+	return msg, action
+}
