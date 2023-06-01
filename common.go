@@ -287,7 +287,12 @@ const (
 	DatasetPropEncryptionRoot
 	DatasetPropKeyGUID
 	DatasetPropKeyStatus
-	DatasetPropRemapTXG /* not exposed to the user */
+	DatasetPropRemapTXG /* obsolete - no longer used */
+	DatasetPropSpecialSmallBlocks
+	DatasetPropIVSetGUID /* not exposed to the user */
+	DatasetPropRedacted
+	DatasetPropRedactSnaps
+	DatasetPropSnapshotsChanged
 	DatasetNumProps
 )
 
