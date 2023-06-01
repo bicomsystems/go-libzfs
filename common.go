@@ -182,6 +182,9 @@ const (
 	PoolPropLoadGuid
 	PoolPropAutotrim
 	PoolPropCompatibility
+	PoolPropBcloneused
+	PoolPropBclonesaved
+	PoolPropBcloneratio
 	PoolNumProps
 )
 
