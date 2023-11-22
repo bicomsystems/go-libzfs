@@ -145,7 +145,7 @@ const (
 )
 
 // Pool properties. Enumerates available ZFS pool properties. Use it to access
-// pool properties either to read or set soecific property.
+// pool properties either to read or set specific property.
 const (
 	PoolPropCont Prop = iota - 2
 	PoolPropInval
@@ -181,6 +181,10 @@ const (
 	PoolPropCheckpoint
 	PoolPropLoadGuid
 	PoolPropAutotrim
+	PoolPropCompatibility
+	PoopPropBcloneUsed
+	PoolPropBcloneSaved
+	PoolPropBcloneRatio
 	PoolNumProps
 )
 

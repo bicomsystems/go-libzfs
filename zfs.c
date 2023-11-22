@@ -132,8 +132,9 @@ int dataset_promote(dataset_list_ptr dataset) {
 	return zfs_promote(dataset->zh);
 }
 
-int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t recur, boolean_t force_unm) {
-	return zfs_rename(dataset->zh, new_name, recur, force_unm);
+int dataset_rename(dataset_list_ptr dataset, const char* new_name, boolean_t recur, boolean_t no_unm, boolean_t force_unm) {
+	renameflags_t flags = {recur, no_unm, force_unm};
+	return zfs_rename(dataset->zh, new_name, flags);
 }
 
 const char *dataset_is_mounted(dataset_list_ptr dataset){
@@ -191,8 +192,8 @@ property_list_t *read_user_property(dataset_list_t *dataset, const char* prop) {
 	nvlist_t *user_props = zfs_get_user_props(dataset->zh);
 	nvlist_t *propval;
 	zprop_source_t sourcetype;
-	char *strval;
-	char *sourceval;
+	const char *strval;
+	const char *sourceval;
 	// char source[ZFS_MAX_DATASET_NAME_LEN];
 	property_list_ptr list = new_property_list();
 	

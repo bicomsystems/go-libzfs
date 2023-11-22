@@ -510,7 +510,7 @@ func (d *Dataset) Promote() (err error) {
 
 // Rename dataset
 func (d *Dataset) Rename(newName string, recur,
-	forceUnmount bool) (err error) {
+	noUnmount, forceUnmount bool) (err error) {
 	if d.list == nil {
 		err = errors.New(msgDatasetIsNil)
 		return
@@ -518,7 +518,7 @@ func (d *Dataset) Rename(newName string, recur,
 	csNewName := C.CString(newName)
 	defer C.free(unsafe.Pointer(csNewName))
 	if errc := C.dataset_rename(d.list, csNewName,
-		booleanT(recur), booleanT(forceUnmount)); errc != 0 {
+		booleanT(recur), booleanT(noUnmount), booleanT(forceUnmount)); errc != 0 {
 		err = LastError()
 		return
 	}
@@ -729,7 +729,7 @@ func (d *Dataset) DestroyPromote() (err error) {
 				// snapshot with the same name already exist
 				volname := path.Base(spath[:strings.Index(spath, "@")])
 				sname = sname + "." + volname
-				if err = s.Rename(spath+"."+volname, false, true); err != nil {
+				if err = s.Rename(spath+"."+volname, false, false, true); err != nil {
 					return
 				}
 			}
